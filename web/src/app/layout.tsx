@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import './globals.css';
 
 // Disable static optimisation & ISR while auth is in flux
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				<title>Vantage AI</title>
 			</head>
 			<body>
-				{children}
+				<ErrorBoundary>
+					{children}
+				</ErrorBoundary>
 			</body>
 		</html>
 	);
