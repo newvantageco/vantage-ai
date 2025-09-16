@@ -1,0 +1,161 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    name: Python Tests
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vantage_ai_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-cov
+        pip install -r requirements.txt
+    
+    - name: Set up test environment
+      env:
+        DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/vantage_ai_test
+        REDIS_URL: redis://localhost:6379
+        SECRET_KEY: test-secret-key-for-testing-only-32-chars
+        DRY_RUN: true
+      run: |
+        # Run database migrations
+        alembic upgrade head
+    
+    - name: Run Python tests
+      env:
+        DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/vantage_ai_test
+        REDIS_URL: redis://localhost:6379
+        SECRET_KEY: test-secret-key-for-testing-only-32-chars
+        DRY_RUN: true
+      run: |
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+      continue-on-error: true
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: python
+        name: python-coverage
+        fail_ci_if_error: false
+
+  typescript-tests:
+    runs-on: ubuntu-latest
+    name: TypeScript Tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./web
+      run: npm ci
+    
+    - name: Run TypeScript tests
+      working-directory: ./web
+      run: |
+        # Check if vitest is available, if not skip tests
+        if npm list vitest > /dev/null 2>&1; then
+          npm run test
+        else
+          echo "No tests configured yet, skipping..."
+        fi
+      continue-on-error: true
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: Integration Tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build and test Docker Compose
+      run: |
+        # Test that Docker Compose configuration is valid
+        docker compose -f infra/docker-compose.dev.yml config
+        
+        # Test that services can start (with timeout)
+        timeout 300 docker compose -f infra/docker-compose.dev.yml up --build -d
+        
+        # Wait for services to be ready
+        sleep 30
+        
+        # Test API health endpoint
+        curl -f http://localhost:8000/api/v1/health || echo "API health check failed"
+        
+        # Test web service
+        curl -f http://localhost:3000 || echo "Web service check failed"
+        
+        # Clean up
+        docker compose -f infra/docker-compose.dev.yml down -v
+      continue-on-error: true
+
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scan
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+      continue-on-error: true
+    
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true

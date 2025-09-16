@@ -1,0 +1,89 @@
+name: Lint and Format Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  python-lint:
+    runs-on: ubuntu-latest
+    name: Python Linting
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff black isort
+        pip install -r requirements.txt
+    
+    - name: Run ruff linter
+      run: |
+        ruff check app/ workers/ tests/ --output-format=github
+    
+    - name: Run black formatter check
+      run: |
+        black --check app/ workers/ tests/
+    
+    - name: Run isort import sorting check
+      run: |
+        isort --check-only app/ workers/ tests/
+
+  typescript-lint:
+    runs-on: ubuntu-latest
+    name: TypeScript Linting
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./web
+      run: npm ci
+    
+    - name: Run ESLint
+      working-directory: ./web
+      run: npm run lint
+    
+    - name: Run Prettier check
+      working-directory: ./web
+      run: npx prettier --check "src/**/*.{ts,tsx,js,jsx,json,css,md}"
+
+  docker-lint:
+    runs-on: ubuntu-latest
+    name: Docker Linting
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run hadolint
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: infra/Dockerfile.api
+        ignore: DL3008,DL3009
+    
+    - name: Run hadolint on web Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: infra/Dockerfile.web
+        ignore: DL3008,DL3009
+    
+    - name: Run hadolint on worker Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: infra/Dockerfile.worker
+        ignore: DL3008,DL3009
