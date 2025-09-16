@@ -47,3 +47,21 @@ class AIBudget(Base):
         """Add usage to current day counters."""
         self.tokens_used_today += tokens
         self.cost_gbp_today += cost_gbp
+
+
+class AIUsage(Base):
+    __tablename__ = "ai_usage"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    
+    # Usage details
+    tokens_used: Mapped[int] = mapped_column(Integer, nullable=False)
+    cost_gbp: Mapped[float] = mapped_column(Float, nullable=False)
+    
+    # Metadata
+    model_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    operation_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # e.g., "content_generation", "optimization"
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)

@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 import httpx
 import jwt
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Request
 
 from app.core.config import get_settings
 
@@ -53,5 +53,28 @@ async def verify_clerk_jwt(token: str) -> AuthClaims:
 		org_id=str(claims.get("org_id")) if claims.get("org_id") else None,
 		email=str(claims.get("email")) if claims.get("email") else None,
 	)
+
+
+def get_current_user_optional(request: Request) -> Optional[Dict[str, Any]]:
+	"""
+	Get current user from request if available, return None if not authenticated.
+	This is used for optional authentication scenarios.
+	"""
+	try:
+		# Try to get authorization header
+		auth_header = request.headers.get("Authorization")
+		if not auth_header or not auth_header.startswith("Bearer "):
+			return None
+		
+		token = auth_header.split(" ")[1]
+		claims = verify_clerk_jwt(token)
+		
+		return {
+			"user_id": claims.user_id,
+			"org_id": claims.org_id,
+			"email": claims.email
+		}
+	except:
+		return None
 
 

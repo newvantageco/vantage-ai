@@ -7,7 +7,7 @@ import secrets
 from app.db.session import get_db
 from app.models.ugc import UGCAsset, UGCRequest, UGCUsage, UGCStatus, UGCRequestStatus, UGCChannel
 from app.models.entities import Organization
-from app.core.security import get_current_user
+from app.api.deps import get_current_user
 from pydantic import BaseModel
 
 router = APIRouter()

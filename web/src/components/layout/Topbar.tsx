@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Search, ChevronDown, Bell, Settings, LogOut, User, Building2, Plus } from "lucide-react";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useDevAuth } from "../DevAuthWrapper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -21,7 +21,7 @@ interface TopbarProps {
 }
 
 export function Topbar({ onSearchFocus }: TopbarProps) {
-  const { user } = useUser();
+  const { user } = useDevAuth();
   const [selectedOrg, setSelectedOrg] = useState("Acme Corp");
   
   // Mock organizations - in real app, this would come from API
@@ -158,14 +158,16 @@ export function Topbar({ onSearchFocus }: TopbarProps) {
 
           {/* Profile */}
           <div className="ml-2">
-            <UserButton 
-              afterSignOutUrl="/"
-              appearance={{
-                elements: {
-                  avatarBox: "w-8 h-8"
-                }
-              }}
-            />
+            <div className="flex items-center gap-2">
+              <img 
+                src={user?.imageUrl || ''} 
+                alt={user?.firstName || 'User'}
+                className="w-8 h-8 rounded-full"
+              />
+              <span className="text-sm font-medium hidden sm:block">
+                {user?.firstName} {user?.lastName}
+              </span>
+            </div>
           </div>
         </div>
       </div>

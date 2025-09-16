@@ -39,25 +39,26 @@ def upgrade():
     op.create_index(op.f('ix_coupons_code'), 'coupons', ['code'], unique=True)
     op.create_index(op.f('ix_coupons_is_active'), 'coupons', ['is_active'], unique=False)
 
-    # Create billing_history table
-    op.create_table('billing_history',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('org_id', sa.String(36), nullable=False),
-        sa.Column('stripe_payment_intent_id', sa.String(255), nullable=True),
-        sa.Column('amount_cents', sa.Integer(), nullable=False),
-        sa.Column('currency', sa.String(3), nullable=False, default='usd'),
-        sa.Column('description', sa.String(500), nullable=False),
-        sa.Column('plan', sa.Enum('starter', 'growth', 'pro', name='plan_tier'), nullable=False),
-        sa.Column('status', sa.String(20), nullable=False),
-        sa.Column('coupon_code', sa.String(100), nullable=True),
-        sa.Column('discount_amount_cents', sa.Integer(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('processed_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_billing_history_org_id'), 'billing_history', ['org_id'], unique=False)
-    op.create_index(op.f('ix_billing_history_stripe_payment_intent_id'), 'billing_history', ['stripe_payment_intent_id'], unique=False)
+    # Create billing_history table using raw SQL to avoid enum creation conflicts
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS billing_history (
+        id VARCHAR(36) NOT NULL PRIMARY KEY,
+        org_id VARCHAR(36) NOT NULL,
+        stripe_payment_intent_id VARCHAR(255),
+        amount_cents INTEGER NOT NULL,
+        currency VARCHAR(3) NOT NULL DEFAULT 'usd',
+        description VARCHAR(500) NOT NULL,
+        plan plan_tier NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        coupon_code VARCHAR(100),
+        discount_amount_cents INTEGER,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        processed_at TIMESTAMP WITHOUT TIME ZONE,
+        CONSTRAINT fk_billing_history_org_id FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+    );
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_billing_history_org_id ON billing_history (org_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_billing_history_stripe_payment_intent_id ON billing_history (stripe_payment_intent_id)")
 
     # Add new columns to organization_billing table
     op.add_column('organization_billing', sa.Column('trial_start', sa.DateTime(), nullable=True))

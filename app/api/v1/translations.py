@@ -11,8 +11,8 @@ from app.models.translations import (
     SUPPORTED_LOCALES, TRANSLATION_PROVIDERS
 )
 from app.models.entities import Organization
-from app.core.security import get_current_user
-from app.workers.translation_worker import process_translation_job
+from app.api.deps import get_current_user
+from workers.translation_worker import process_translation_job
 from pydantic import BaseModel
 
 router = APIRouter()

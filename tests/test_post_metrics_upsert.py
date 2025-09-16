@@ -77,7 +77,7 @@ def insights_poller() -> InsightsPoller:
     return InsightsPoller()
 
 
-def test_upsert_post_metrics_prevents_duplicates(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
+async def test_upsert_post_metrics_prevents_duplicates(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
     """Test that upsert prevents duplicate PostMetrics for the same schedule and date."""
     
     # Create initial PostMetrics

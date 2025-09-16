@@ -8,10 +8,10 @@ from app.services.model_router import AIRouter
 
 async def _call_all(router: AIRouter):
     res = {}
-    res["caption"] = await router.generate_caption(None, "return JSON {\\"caption\\": \\\"hi\\\"}")
-    res["text"] = await router.rewrite_to_voice(None, "return JSON {\\"text\\": \\\"hi\\\"}")
-    res["hashtags"] = await router.hashtags(None, "return JSON {\\"hashtags\\": []}")
-    res["first_comment"] = await router.first_comment(None, "return JSON {\\"first_comment\\": \\\"hi\\\"}")
+    res["caption"] = await router.generate_caption(None, 'return JSON {"caption": "hi"}')
+    res["text"] = await router.rewrite_to_voice(None, 'return JSON {"text": "hi"}')
+    res["hashtags"] = await router.hashtags(None, 'return JSON {"hashtags": []}')
+    res["first_comment"] = await router.first_comment(None, 'return JSON {"first_comment": "hi"}')
     return res
 
 

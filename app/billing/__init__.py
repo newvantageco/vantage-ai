@@ -8,7 +8,7 @@ This module handles all billing-related functionality including:
 - Billing analytics
 """
 
-from .stripe_client import StripeClient
-from .stripe_enhanced import StripeEnhanced
+from .stripe_client import get_client, create_checkout_session
+from .stripe_enhanced import StripeEnhancedClient
 
-__all__ = ["StripeClient", "StripeEnhanced"]
+__all__ = ["get_client", "create_checkout_session", "StripeEnhancedClient"]

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import secrets
 
 from app.db.session import get_db
-from app.core.security import get_current_user
+from app.api.deps import get_current_user
 from app.publishers.tiktok import TikTokAdsProvider
 from app.publishers.google_ads import GoogleAdsProvider
 from pydantic import BaseModel

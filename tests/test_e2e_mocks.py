@@ -71,7 +71,7 @@ def test_schedule(db_session: Session, test_org: Organization, test_channel: Cha
     return schedule
 
 
-def test_e2e_mocks_creates_schedule_external_when_enabled(db_session: Session, test_schedule: Schedule, test_channel: Channel):
+async def test_e2e_mocks_creates_schedule_external_when_enabled(db_session: Session, test_schedule: Schedule, test_channel: Channel):
     """Test that E2E mocks create schedule_external entries when enabled."""
     
     # Mock the settings to enable E2E mocks

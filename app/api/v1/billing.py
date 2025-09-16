@@ -13,7 +13,7 @@ from app.api.deps import get_bearer_token
 from app.core.security import verify_clerk_jwt
 from app.db.session import get_db
 from app.models.billing import OrganizationBilling, PlanTier, BillingStatus
-from app.billing.stripe_client import stripe_client, PlanTier as StripePlanTier
+from app.billing.stripe_client import get_client, PlanTier as StripePlanTier
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ async def create_checkout(
     # If no Stripe customer ID, create one
     if not billing.stripe_customer_id:
         # TODO: Get user email and name from auth context
-        customer = await stripe_client.create_customer(
+        customer = await get_client().create_customer(
             email="demo@example.com",
             name="Demo User",
             org_id=org_id
@@ -92,7 +92,7 @@ async def create_checkout(
         db.commit()
     
     # Create checkout session
-    session = await stripe_client.create_checkout_session(
+    session = await get_client().create_checkout_session(
         customer_id=billing.stripe_customer_id,
         plan=StripePlanTier(request.plan.value),
         success_url=request.success_url,
@@ -121,7 +121,7 @@ async def create_portal_session(
             detail="No billing account found"
         )
     
-    session = await stripe_client.create_portal_session(
+    session = await get_client().create_portal_session(
         customer_id=billing.stripe_customer_id,
         return_url=return_url
     )
@@ -162,7 +162,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing stripe-signature header")
     
     try:
-        event = stripe_client.construct_webhook_event(payload, sig_header)
+        event = get_client().construct_webhook_event(payload, sig_header)
     except Exception as e:
         logger.error(f"Webhook signature verification failed: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature")
@@ -200,7 +200,7 @@ async def handle_checkout_completed(event: dict, db: Session):
         return
     
     # Get subscription details
-    subscription = await stripe_client.get_subscription(subscription_id)
+    subscription = await get_client().get_subscription(subscription_id)
     
     # Update billing record
     billing.stripe_subscription_id = subscription_id

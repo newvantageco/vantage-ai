@@ -8,8 +8,8 @@ import json
 from app.db.session import get_db
 from app.models.webhooks import Webhook, WebhookDelivery, WebhookEvent, WEBHOOK_EVENTS
 from app.models.entities import Organization
-from app.core.security import get_current_user
-from app.workers.webhook_worker import send_webhook
+from app.api.deps import get_current_user
+from workers.webhook_worker import send_webhook
 from pydantic import BaseModel
 
 router = APIRouter()

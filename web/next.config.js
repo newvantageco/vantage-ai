@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: { forceSwcTransforms: true },
+  // Disable static optimization for pages that use Clerk
+  output: 'standalone',
   // PWA configuration
   async headers() {
     return [

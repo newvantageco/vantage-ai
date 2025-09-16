@@ -11,78 +11,88 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '0005'
-down_revision = '0004'
+down_revision = '0004_billing_models'
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    # Create template_type enum
-    template_type_enum = postgresql.ENUM('image', 'video', name='template_type')
-    template_type_enum.create(op.get_bind())
+    # Create template_type enum with idempotency check
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'template_type') THEN
+            CREATE TYPE template_type AS ENUM ('image', 'video');
+        END IF;
+    END $$;
+    """)
     
-    # Create asset_templates table
-    op.create_table('asset_templates',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('org_id', sa.String(36), nullable=True),
-        sa.Column('name', sa.String(255), nullable=False),
-        sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('type', template_type_enum, nullable=False),
-        sa.Column('spec', sa.JSON(), nullable=False),
-        sa.Column('is_public', sa.Boolean(), nullable=False, default=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('created_by', sa.String(36), nullable=True),
-        sa.ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['created_by'], ['users.id'], ondelete='SET NULL'),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('org_id', 'user_id', name='uq_user_org_role')
-    )
-    op.create_index(op.f('ix_asset_templates_org_id'), 'asset_templates', ['org_id'], unique=False)
+    # Create asset_templates table using raw SQL to avoid enum creation conflicts
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS asset_templates (
+        id VARCHAR(36) NOT NULL PRIMARY KEY,
+        org_id VARCHAR(36),
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        type template_type NOT NULL,
+        spec JSON NOT NULL,
+        is_public BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_by VARCHAR(36),
+        CONSTRAINT fk_asset_templates_org_id FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE,
+        CONSTRAINT fk_asset_templates_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        CONSTRAINT uq_asset_templates_org_created_by UNIQUE (org_id, created_by)
+    );
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_asset_templates_org_id ON asset_templates (org_id)")
 
     # Create template_usage table
-    op.create_table('template_usage',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('template_id', sa.String(36), nullable=False),
-        sa.Column('org_id', sa.String(36), nullable=False),
-        sa.Column('content_item_id', sa.String(36), nullable=True),
-        sa.Column('used_at', sa.DateTime(), nullable=False),
-        sa.Column('inputs', sa.JSON(), nullable=True),
-        sa.ForeignKeyConstraint(['template_id'], ['asset_templates.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['content_item_id'], ['content_items.id'], ondelete='SET NULL'),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_template_usage_template_id'), 'template_usage', ['template_id'], unique=False)
-    op.create_index(op.f('ix_template_usage_org_id'), 'template_usage', ['org_id'], unique=False)
-    op.create_index(op.f('ix_template_usage_content_item_id'), 'template_usage', ['content_item_id'], unique=False)
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS template_usage (
+        id VARCHAR(36) NOT NULL PRIMARY KEY,
+        template_id VARCHAR(36) NOT NULL,
+        org_id VARCHAR(36) NOT NULL,
+        content_item_id VARCHAR(36),
+        used_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        inputs JSON,
+        CONSTRAINT fk_template_usage_template_id FOREIGN KEY (template_id) REFERENCES asset_templates(id) ON DELETE CASCADE,
+        CONSTRAINT fk_template_usage_org_id FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE,
+        CONSTRAINT fk_template_usage_content_item_id FOREIGN KEY (content_item_id) REFERENCES content_items(id) ON DELETE SET NULL
+    );
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_template_usage_template_id ON template_usage (template_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_template_usage_org_id ON template_usage (org_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_template_usage_content_item_id ON template_usage (content_item_id)")
 
     # Create conversations table
-    op.create_table('conversations',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('org_id', sa.String(36), nullable=False),
-        sa.Column('channel', sa.String(32), nullable=False),
-        sa.Column('peer_id', sa.String(255), nullable=False),
-        sa.Column('last_message_at', sa.DateTime(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_conversations_org_id'), 'conversations', ['org_id'], unique=False)
-    op.create_index(op.f('ix_conversations_peer_id'), 'conversations', ['peer_id'], unique=False)
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS conversations (
+        id VARCHAR(36) NOT NULL PRIMARY KEY,
+        org_id VARCHAR(36) NOT NULL,
+        channel VARCHAR(32) NOT NULL,
+        peer_id VARCHAR(255) NOT NULL,
+        last_message_at TIMESTAMP WITHOUT TIME ZONE,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_conversations_org_id FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+    );
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_conversations_org_id ON conversations (org_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_conversations_peer_id ON conversations (peer_id)")
 
     # Create messages table
-    op.create_table('messages',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('conversation_id', sa.String(36), nullable=False),
-        sa.Column('direction', sa.String(16), nullable=False),
-        sa.Column('text', sa.Text(), nullable=True),
-        sa.Column('media_url', sa.String(500), nullable=True),
-        sa.Column('metadata', sa.JSON(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['conversation_id'], ['conversations.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_messages_conversation_id'), 'messages', ['conversation_id'], unique=False)
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS messages (
+        id VARCHAR(36) NOT NULL PRIMARY KEY,
+        conversation_id VARCHAR(36) NOT NULL,
+        direction VARCHAR(16) NOT NULL,
+        text TEXT,
+        media_url VARCHAR(500),
+        metadata JSON,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_messages_conversation_id FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    );
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_messages_conversation_id ON messages (conversation_id)")
 
 
 def downgrade() -> None:

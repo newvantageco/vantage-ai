@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import json
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +14,8 @@ class TikTokAdsProvider:
     
     def __init__(self):
         self.base_url = "https://business-api.tiktok.com/open_api/v1.3"
-        self.access_token = settings.TIKTOK_ACCESS_TOKEN
-        self.advertiser_id = settings.TIKTOK_ADVERTISER_ID
+        self.access_token = get_settings().TIKTOK_ACCESS_TOKEN
+        self.advertiser_id = get_settings().TIKTOK_ADVERTISER_ID
         self.headers = {
             "Access-Token": self.access_token,
             "Content-Type": "application/json"

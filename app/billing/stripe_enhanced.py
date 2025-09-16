@@ -3,20 +3,20 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 import logging
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.models.billing import OrganizationBilling, Coupon, BillingHistory, PlanTier, BillingStatus
 
 logger = logging.getLogger(__name__)
 
 # Configure Stripe
-stripe.api_key = settings.STRIPE_SECRET_KEY
+stripe.api_key = get_settings().stripe_secret_key
 
 
 class StripeEnhancedClient:
     """Enhanced Stripe client for billing operations."""
     
     def __init__(self):
-        self.webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+        self.webhook_secret = get_settings().stripe_webhook_secret
     
     def create_customer(self, org_id: str, email: str, name: str) -> str:
         """Create a Stripe customer."""

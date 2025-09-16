@@ -8,8 +8,11 @@ import json
 from app.db.session import get_db
 from app.models.exports import ExportJob, ExportCredential, ExportTable, ExportStatus, ExportTarget, EXPORT_TABLES
 from app.models.entities import Organization
-from app.core.security import get_current_user
-from app.workers.export_worker import process_export_job
+from app.api.deps import get_current_user
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+from workers.export_worker import process_export_job
 from pydantic import BaseModel
 
 router = APIRouter()

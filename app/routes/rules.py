@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, desc
 
-from app.api.deps import get_db, get_bearer_token, verify_clerk_jwt
+from app.api.deps import get_db, get_bearer_token
+from app.core.security import verify_clerk_jwt
 from app.models.rules import Rule, RuleRun, RuleStatus
 from app.automation.rules_engine import rules_engine, TriggerType, ActionType
 from app.core.config import get_settings

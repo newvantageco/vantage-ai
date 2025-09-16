@@ -19,11 +19,15 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Enum type for content status
-    content_status = sa.Enum(
-        "draft", "approved", "scheduled", "posted", "failed", name="content_status"
-    )
-    content_status.create(op.get_bind(), checkfirst=True)
+    # Create enum type for content status
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'content_status') THEN
+            CREATE TYPE content_status AS ENUM ('draft', 'approved', 'scheduled', 'posted', 'failed');
+        END IF;
+    END $$;
+    """)
 
     op.create_table(
         "brand_guides",

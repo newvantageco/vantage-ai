@@ -71,7 +71,7 @@ def test_schedule_metrics(db_session: Session, test_schedule: Schedule) -> Sched
     return metrics
 
 
-def test_optimiser_worker_updates_only_once_per_schedule(
+async def test_optimiser_worker_updates_only_once_per_schedule(
     db_session: Session, 
     test_org: Organization, 
     test_channel: Channel, 

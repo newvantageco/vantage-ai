@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import json
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +14,9 @@ class GoogleAdsProvider:
     
     def __init__(self):
         self.base_url = "https://googleads.googleapis.com/v14"
-        self.access_token = settings.GOOGLE_ADS_ACCESS_TOKEN
-        self.customer_id = settings.GOOGLE_ADS_CUSTOMER_ID
-        self.developer_token = settings.GOOGLE_ADS_DEVELOPER_TOKEN
+        self.access_token = get_settings().GOOGLE_ADS_ACCESS_TOKEN
+        self.customer_id = get_settings().GOOGLE_ADS_CUSTOMER_ID
+        self.developer_token = get_settings().GOOGLE_ADS_DEVELOPER_TOKEN
         self.headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",

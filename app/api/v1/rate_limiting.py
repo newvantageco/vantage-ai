@@ -10,7 +10,7 @@ from app.models.rate_limiting import (
     RateLimitScopes, DEFAULT_RATE_LIMITS
 )
 from app.models.entities import Organization
-from app.core.security import get_current_user
+from app.api.deps import get_current_user
 from pydantic import BaseModel
 
 router = APIRouter()

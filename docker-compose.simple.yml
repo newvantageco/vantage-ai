@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Web Frontend (Standalone)
+  web:
+    image: sabanali/vantage-ai-web:latest
+    container_name: vantage-ai-web
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_demo
+      - NODE_ENV=development
+      - NEXT_PUBLIC_DEBUG=true
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - vantage-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: vantage-ai-postgres
+    environment:
+      - POSTGRES_DB=vantage_ai
+      - POSTGRES_USER=vantage_user
+      - POSTGRES_PASSWORD=vantage_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vantage_user -d vantage_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vantage-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: vantage-ai-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6380:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vantage-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  vantage-network:
+    driver: bridge

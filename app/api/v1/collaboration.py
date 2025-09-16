@@ -11,7 +11,7 @@ from app.models.collaboration import (
     CollaborationActions, LockTypes, NotificationTypes
 )
 from app.models.entities import Organization
-from app.core.security import get_current_user
+from app.api.deps import get_current_user
 from pydantic import BaseModel
 
 router = APIRouter()
