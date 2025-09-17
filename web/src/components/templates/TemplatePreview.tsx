@@ -125,8 +125,7 @@ export default function TemplatePreview({
                 alt="Generated template preview"
                 width={600}
                 height={400}
-                className="rounded object-contain"
-                style={{ maxWidth: '100%', height: 'auto' }}
+                className="rounded object-contain max-w-full h-auto"
               />
             ) : (
               <video 

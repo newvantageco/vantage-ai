@@ -31,7 +31,8 @@ def test_channel(db_session: Session, test_org: Organization) -> Channel:
         id="test-channel-123",
         org_id=test_org.id,
         provider="linkedin",
-        name="Test LinkedIn Channel",
+        account_ref="test-page-123",
+        access_token="test-token-123",
         created_at=datetime.utcnow()
     )
     db_session.add(channel)
@@ -138,7 +139,8 @@ async def test_upsert_post_metrics_prevents_duplicates(insights_poller: Insights
     assert final_metrics.clicks == 8
 
 
-def test_upsert_post_metrics_allows_different_dates(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
+@pytest.mark.asyncio
+async def test_upsert_post_metrics_allows_different_dates(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
     """Test that upsert allows different PostMetrics for different dates."""
     
     # Create metrics for today
@@ -193,7 +195,8 @@ def test_upsert_post_metrics_allows_different_dates(insights_poller: InsightsPol
     assert yesterday.date() in dates
 
 
-def test_upsert_post_metrics_handles_database_errors(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
+@pytest.mark.asyncio
+async def test_upsert_post_metrics_handles_database_errors(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
     """Test that upsert handles database errors gracefully."""
     
     # Create metrics with invalid data that might cause database errors
@@ -225,7 +228,8 @@ def test_upsert_post_metrics_handles_database_errors(insights_poller: InsightsPo
         assert "Failed to upsert PostMetrics" in str(e) or "database" in str(e).lower()
 
 
-def test_upsert_post_metrics_with_none_values(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
+@pytest.mark.asyncio
+async def test_upsert_post_metrics_with_none_values(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
     """Test that upsert handles None values correctly."""
     
     # Create metrics with None values
@@ -262,7 +266,8 @@ def test_upsert_post_metrics_with_none_values(insights_poller: InsightsPoller, d
     assert final_metrics.clicks is None
 
 
-def test_upsert_post_metrics_unique_constraint(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
+@pytest.mark.asyncio
+async def test_upsert_post_metrics_unique_constraint(insights_poller: InsightsPoller, db_session: Session, test_schedule: Schedule):
     """Test that upsert respects the unique constraint on schedule_id + fetched_at."""
     
     # Create metrics for a specific date

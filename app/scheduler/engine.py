@@ -30,12 +30,17 @@ class SchedulerLock:
         self.lock = None
     
     async def __aenter__(self):
-        self.lock = await self.redis.lock(
-            self.lock_key, 
-            timeout=self.timeout,
-            blocking_timeout=1.0
-        )
-        return self.lock
+        try:
+            self.lock = await self.redis.lock(
+                self.lock_key, 
+                timeout=self.timeout,
+                blocking_timeout=1.0
+            )
+            return self.lock
+        except Exception:
+            # If lock acquisition fails, return None
+            self.lock = None
+            return None
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.lock:

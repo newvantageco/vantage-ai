@@ -30,7 +30,8 @@ def test_channel(db_session: Session, test_org: Organization) -> Channel:
         id="test-channel-123",
         org_id=test_org.id,
         provider="linkedin",
-        name="Test LinkedIn Channel",
+        account_ref="test-page-123",
+        access_token="test-token-123",
         created_at=datetime.utcnow()
     )
     db_session.add(channel)
@@ -71,6 +72,7 @@ def test_schedule_metrics(db_session: Session, test_schedule: Schedule) -> Sched
     return metrics
 
 
+@pytest.mark.asyncio
 async def test_optimiser_worker_updates_only_once_per_schedule(
     db_session: Session, 
     test_org: Organization, 
@@ -106,7 +108,8 @@ async def test_optimiser_worker_updates_only_once_per_schedule(
     assert optimiser_state.pulls == 1  # Should still be 1, not 2
 
 
-def test_optimiser_worker_skips_schedules_without_metrics(
+@pytest.mark.asyncio
+async def test_optimiser_worker_skips_schedules_without_metrics(
     db_session: Session, 
     test_org: Organization, 
     test_channel: Channel, 
@@ -123,7 +126,8 @@ def test_optimiser_worker_skips_schedules_without_metrics(
     assert len(optimiser_states) == 0
 
 
-def test_optimiser_worker_skips_already_applied_metrics(
+@pytest.mark.asyncio
+async def test_optimiser_worker_skips_already_applied_metrics(
     db_session: Session, 
     test_org: Organization, 
     test_channel: Channel, 
@@ -148,7 +152,8 @@ def test_optimiser_worker_skips_already_applied_metrics(
     assert updated_count == 0
 
 
-def test_optimiser_worker_skips_old_schedules(
+@pytest.mark.asyncio
+async def test_optimiser_worker_skips_old_schedules(
     db_session: Session, 
     test_org: Organization, 
     test_channel: Channel
@@ -184,7 +189,8 @@ def test_optimiser_worker_skips_old_schedules(
     assert updated_count == 0
 
 
-def test_optimiser_worker_handles_invalid_rewards(
+@pytest.mark.asyncio
+async def test_optimiser_worker_handles_invalid_rewards(
     db_session: Session, 
     test_org: Organization, 
     test_channel: Channel, 

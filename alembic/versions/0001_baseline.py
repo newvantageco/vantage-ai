@@ -83,9 +83,9 @@ def upgrade() -> None:
     )
     
     # Create indexes for rules table
-    op.execute("CREATE INDEX IF NOT EXISTS ix_rules_org_id ON rules (org_id)")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_rules_trigger ON rules (trigger)")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_rules_enabled ON rules (enabled)")
+    # op.create_index("ix_rules_org_id", "rules", ["org_id"])
+    # op.create_index("ix_rules_trigger", "rules", ["trigger"])
+    # op.create_index("ix_rules_enabled", "rules", ["enabled"])
 
 
 def downgrade() -> None:

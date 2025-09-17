@@ -63,7 +63,7 @@ export function Calendar({
       setSelectedChannel("");
       setScheduledFor("");
     } catch (error) {
-      console.error("Failed to create schedule:", error);
+      // Error handled by UI state
     }
   };
 
@@ -72,8 +72,8 @@ export function Calendar({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Content Calendar</h2>
-          <p className="text-gray-600">Schedule and manage your content</p>
+          <h2 className="text-2xl font-bold text-foreground">Content Calendar</h2>
+          <p className="text-muted-foreground">Schedule and manage your content</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={onSuggestPosts} variant="outline">
@@ -162,8 +162,8 @@ export function Calendar({
         </CardHeader>
         <CardContent>
           {schedules.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-8 text-muted-foreground">
+              <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
               <p>No content scheduled yet</p>
               <p className="text-sm">Create your first schedule to get started</p>
             </div>
@@ -179,11 +179,11 @@ export function Calendar({
                       <div className="font-medium">
                         {contentItem?.title || `Content ${schedule.content_item_id.slice(0, 8)}`}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         {channel?.provider} - {channel?.account_ref || channel?.id}
                       </div>
                       {schedule.caption && (
-                        <div className="text-sm text-gray-500 mt-1">
+                        <div className="text-sm text-muted-foreground/80 mt-1">
                           {schedule.caption}
                         </div>
                       )}
@@ -192,7 +192,7 @@ export function Calendar({
                       <div className="text-sm font-medium">
                         {new Date(schedule.scheduled_at).toLocaleDateString()}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         {new Date(schedule.scheduled_at).toLocaleTimeString()}
                       </div>
                       <div className={`text-xs px-2 py-1 rounded-full mt-1 ${

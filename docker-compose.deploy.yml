@@ -7,7 +7,7 @@ services:
     container_name: vantage-ai-api
     environment:
       - ENVIRONMENT=production
-      - DATABASE_URL=${DATABASE_URL:-postgresql://vantage_user:password@postgres:5432/vantage_ai}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://vantage_user:vantage_password@postgres:5432/vantage_ai}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
@@ -17,7 +17,7 @@ services:
       - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      - SECRET_KEY=${SECRET_KEY:-WwCPA9oR0hhvxSdEtIhDAoty2vJFSJUtMoHIN5ey3j8=}
+      - SECRET_KEY=${SECRET_KEY:-7zQm-CsSsrgY9bsK6vKq3NZgeh2Lu4RBgKBXQvqPXTw=}
       - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-key-here}
     ports:
       - "8001:8000"
@@ -63,7 +63,7 @@ services:
     container_name: vantage-ai-worker
     environment:
       - ENVIRONMENT=production
-      - DATABASE_URL=${DATABASE_URL:-postgresql://vantage_user:password@postgres:5432/vantage_ai}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://vantage_user:vantage_password@postgres:5432/vantage_ai}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}

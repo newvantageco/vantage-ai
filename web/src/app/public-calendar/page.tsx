@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
-import Calendar from "@/components/Calendar";
-import { EmptyState } from "@/components/ui/empty-state";
+import React, { useEffect, useState } from "react";
+import { ModernCalendar } from "@/components/ModernCalendar";
+import { ModernSidebar } from "@/components/ModernSidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Clock, Zap } from "lucide-react";
 
 type Schedule = {
   id: string;
@@ -14,6 +14,7 @@ type Schedule = {
   status: string;
   caption?: string;
   channel_name?: string;
+  title?: string;
 };
 
 type ContentItem = {
@@ -47,10 +48,18 @@ export default function CalendarDashboardPage() {
   async function loadData() {
     if (!orgId) return;
     
-    // Load schedules
-    const schedulesResp = await fetch("/api/schedule/due");
-    const schedulesData = await schedulesResp.json();
-    setSchedules(schedulesData);
+    try {
+      // Load schedules
+      const schedulesResp = await fetch("/api/schedule/due");
+      if (!schedulesResp.ok) {
+        throw new Error(`Failed to load schedules: ${schedulesResp.status}`);
+      }
+      const schedulesData = await schedulesResp.json();
+      setSchedules(schedulesData);
+    } catch (error) {
+      console.error("Error loading data:", error);
+      setMsg(`Error loading data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
 
     // Load content items (mock for now - would need actual endpoint)
     setContentItems([
@@ -71,23 +80,48 @@ export default function CalendarDashboardPage() {
     scheduledFor: string;
   }) {
     setMsg(null);
-    const payload = [{
-      content_id: data.contentId,
-      channel_id: data.channelId,
-      scheduled_for: data.scheduledFor,
-    }];
-    const resp = await fetch("/api/schedule/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = await resp.json();
-    if (!resp.ok) {
-      setMsg(`Error: ${result.detail || "Failed to create schedule"}`);
+    
+    // Validate input data
+    if (!data.contentId || !data.channelId || !data.scheduledFor) {
+      setMsg("Error: All fields are required");
       return;
     }
-    setMsg("Schedule created successfully!");
-    await loadData();
+    
+    // Validate date format
+    const scheduledDate = new Date(data.scheduledFor);
+    if (isNaN(scheduledDate.getTime())) {
+      setMsg("Error: Invalid date format");
+      return;
+    }
+    
+    // Check if date is in the future
+    if (scheduledDate <= new Date()) {
+      setMsg("Error: Scheduled date must be in the future");
+      return;
+    }
+    
+    try {
+      const payload = [{
+        content_id: data.contentId,
+        channel_id: data.channelId,
+        scheduled_for: data.scheduledFor,
+      }];
+      const resp = await fetch("/api/schedule/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await resp.json();
+      if (!resp.ok) {
+        setMsg(`Error: ${result.detail || "Failed to create schedule"}`);
+        return;
+      }
+      setMsg("Schedule created successfully!");
+      await loadData();
+    } catch (error) {
+      console.error("Error creating schedule:", error);
+      setMsg(`Error: ${error instanceof Error ? error.message : 'Failed to create schedule'}`);
+    }
   }
 
   async function handleSuggestPosts() {
@@ -117,150 +151,141 @@ export default function CalendarDashboardPage() {
 
   if (!orgId) {
     return (
-      <div>
-        <h1>Calendar</h1>
-        <div>
-          <label>Org ID</label>
-          <input value={orgId} onChange={(e) => setOrgId(e.target.value)} placeholder="Enter organization ID" />
+      <div className="p-6">
+        <h1 className="text-2xl font-semibold mb-4">Calendar</h1>
+        <div className="flex items-center gap-3">
+          <label className="font-medium">Org ID</label>
+          <input 
+            value={orgId} 
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrgId(e.target.value)} 
+            placeholder="Enter organization ID"
+            className="px-3 py-2 border border-border rounded-md input-focus"
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="page-header">
-        <div>
-          <label>Org ID</label>
-          <input value={orgId} onChange={(e) => setOrgId(e.target.value)} />
-        </div>
-        <button onClick={runScheduler}>Run Scheduler</button>
-      </div>
-      
-      {msg && <div className="message">{msg}</div>}
-      
-      <Calendar
-        orgId={orgId}
-        schedules={schedules}
-        contentItems={contentItems}
-        channels={channels}
-        onScheduleCreate={handleScheduleCreate}
-        onSuggestPosts={handleSuggestPosts}
-      />
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex">
+        <ModernSidebar />
+        <main className="flex-1 p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">Content Calendar</h1>
+                  <p className="text-gray-600 mt-2">
+                    Schedule and manage your content across all channels
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Org ID:</label>
+                    <input 
+                      value={orgId} 
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrgId(e.target.value)} 
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      placeholder="Enter organization ID"
+                    />
+                  </div>
+                  <Button 
+                    onClick={runScheduler}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Run Scheduler
+                  </Button>
+                </div>
+              </div>
+            </div>
 
-      {/* Suggestions Sidebar */}
-      {showSuggestions && (
-        <div className="suggestions-sidebar">
-          <div className="suggestions-header">
-            <h3>Suggested Posts</h3>
-            <button onClick={() => setShowSuggestions(false)}>×</button>
-          </div>
-          <div className="suggestions-list">
-            {suggestions.map((suggestion, index) => (
-              <div key={index} className="suggestion-item">
-                <h4>{suggestion.topic}</h4>
-                <p>{suggestion.caption}</p>
-                <div className="hashtags">
-                  {suggestion.hashtags.map((tag, i) => (
-                    <span key={i} className="hashtag">#{tag}</span>
+            {/* Status Message */}
+            {msg && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-green-800">{msg}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modern Calendar Component */}
+            <ModernCalendar
+              schedules={schedules}
+              onDateSelect={(date) => console.log('Date selected:', date)}
+              onScheduleCreate={handleScheduleCreate}
+              onScheduleEdit={(schedule) => console.log('Edit schedule:', schedule)}
+              onScheduleDelete={(scheduleId) => console.log('Delete schedule:', scheduleId)}
+            />
+
+            {/* AI Suggestions */}
+            <div className="mt-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-blue-600" />
+                    AI Content Suggestions
+                  </CardTitle>
+                  <CardDescription>
+                    Get AI-powered content ideas for your upcoming posts
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    onClick={handleSuggestPosts}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Generate Content Ideas
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Suggestions Sidebar */}
+            {showSuggestions && (
+              <div className="fixed top-0 right-0 bottom-0 w-96 bg-white border-l border-gray-200 shadow-xl z-50 overflow-y-auto">
+                <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">AI Content Suggestions</h3>
+                  <button 
+                    onClick={() => setShowSuggestions(false)}
+                    className="text-gray-400 hover:text-gray-600 text-2xl"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="p-6">
+                  {suggestions.map((suggestion: Suggestion, index: number) => (
+                    <div key={index} className="mb-6 p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                      <h4 className="font-semibold text-gray-900 mb-2">{suggestion.topic}</h4>
+                      <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                        {suggestion.caption}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestion.hashtags.map((tag: string, i: number) => (
+                          <span key={i} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      )}
-
-      <style jsx>{`
-        .page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-          padding: 16px;
-          background: #f5f5f5;
-          border-radius: 8px;
-        }
-        .page-header label {
-          margin-right: 8px;
-        }
-        .page-header input {
-          padding: 8px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          margin-right: 16px;
-        }
-        .page-header button {
-          background: #28a745;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        .message {
-          padding: 12px;
-          margin-bottom: 16px;
-          border-radius: 4px;
-          background: #d4edda;
-          border: 1px solid #c3e6cb;
-          color: #155724;
-        }
-        .suggestions-sidebar {
-          position: fixed;
-          top: 0;
-          right: 0;
-          bottom: 0;
-          width: 400px;
-          background: white;
-          box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
-          z-index: 1000;
-          overflow-y: auto;
-        }
-        .suggestions-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 20px;
-          border-bottom: 1px solid #eee;
-        }
-        .suggestions-header button {
-          background: none;
-          border: none;
-          font-size: 24px;
-          cursor: pointer;
-        }
-        .suggestions-list {
-          padding: 20px;
-        }
-        .suggestion-item {
-          margin-bottom: 20px;
-          padding: 16px;
-          border: 1px solid #eee;
-          border-radius: 8px;
-        }
-        .suggestion-item h4 {
-          margin: 0 0 8px 0;
-          color: #333;
-        }
-        .suggestion-item p {
-          margin: 0 0 12px 0;
-          color: #666;
-          line-height: 1.4;
-        }
-        .hashtags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 4px;
-        }
-        .hashtag {
-          background: #e3f2fd;
-          color: #1976d2;
-          padding: 2px 6px;
-          border-radius: 12px;
-          font-size: 12px;
-        }
-      `}</style>
+        </main>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ PyJWT[crypto]==2.9.0
 pydantic==2.9.1
 pydantic-settings==2.6.0
 SQLAlchemy==2.0.35
-psycopg[binary]==3.2.3
+psycopg[binary]==3.2.10
 psycopg2-binary==2.9.9
 alembic==1.13.1
 pgvector==0.3.5

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-from sqlalchemy import String, Text, ForeignKey, JSON, DateTime
+from sqlalchemy import String, Text, ForeignKey, JSON, DateTime, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -23,6 +23,12 @@ class Conversation(Base):
     # Relationships
     organization: Mapped[Organization] = relationship("Organization")  # type: ignore[name-defined]
     messages: Mapped[list[Message]] = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")  # type: ignore[name-defined]
+
+    __table_args__ = (
+        Index("ix_conversations_org_channel", "org_id", "channel"),
+        Index("ix_conversations_last_message", "last_message_at"),
+        Index("ix_conversations_peer_id", "peer_id"),
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert conversation to dictionary for API responses."""
@@ -51,6 +57,11 @@ class Message(Base):
 
     # Relationships
     conversation: Mapped[Conversation] = relationship("Conversation", back_populates="messages")  # type: ignore[name-defined]
+
+    __table_args__ = (
+        Index("ix_messages_conversation_created", "conversation_id", "created_at"),
+        Index("ix_messages_direction", "direction"),
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert message to dictionary for API responses."""

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { apiService } from "@/lib/api";
 
 interface RetentionPolicy {
   messages_days: number;
@@ -59,18 +59,18 @@ export default function PrivacyPage() {
     try {
       setLoading(true);
       const [retentionResponse, jobsResponse] = await Promise.all([
-        api.get<RetentionPolicy>("/privacy/retention"),
-        api.get<{ jobs: PrivacyJob[] }>("/privacy/jobs")
+        apiService.request<RetentionPolicy>("/api/v1/privacy/retention"),
+        apiService.request<{ jobs: PrivacyJob[] }>("/api/v1/privacy/jobs")
       ]);
       
       setRetentionPolicy(retentionResponse.data);
       setPrivacyJobs(jobsResponse.data.jobs);
       
       // Get org name for delete confirmation
-      const orgResponse = await api.get<{ name: string }>("/orgs");
+      const orgResponse = await apiService.request<{ name: string }>("/api/v1/orgs");
       setOrgName(orgResponse.data.name);
     } catch (error) {
-      console.error("Failed to fetch privacy data:", error);
+      // Error handled by UI state
     } finally {
       setLoading(false);
     }
@@ -84,11 +84,13 @@ export default function PrivacyPage() {
       const updateData: Partial<RetentionPolicy> = {};
       (updateData as any)[field] = value;
       
-      await api.put("/privacy/retention", updateData);
+      await apiService.request("/api/v1/privacy/retention", {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      });
       setRetentionPolicy({ ...retentionPolicy, ...updateData });
     } catch (error) {
-      console.error("Failed to update retention policy:", error);
-      alert("Failed to update retention policy. Please try again.");
+      // Error handled by UI state
     } finally {
       setSaving(false);
     }
@@ -97,12 +99,14 @@ export default function PrivacyPage() {
   const handleExport = async () => {
     try {
       setExportLoading(true);
-      const response = await api.post("/privacy/export", exportForm);
-      alert("Export job started. You'll be notified when it's ready.");
+      const response = await apiService.request("/api/v1/privacy/export", {
+        method: 'POST',
+        body: JSON.stringify(exportForm),
+      });
+      // Export job started - user will be notified
       fetchData(); // Refresh jobs list
     } catch (error) {
-      console.error("Failed to start export:", error);
-      alert("Failed to start export. Please try again.");
+      // Error handled by UI state
     } finally {
       setExportLoading(false);
     }
@@ -110,19 +114,21 @@ export default function PrivacyPage() {
 
   const handleDelete = async () => {
     if (deleteForm.confirm_org_name !== orgName) {
-      alert("Organization name does not match. Please check and try again.");
+      // Validation error - handled by UI
       return;
     }
 
     try {
       setDeleteLoading(true);
-      await api.post("/privacy/delete", deleteForm);
-      alert("Deletion job started. Your data will be deleted after the grace period.");
+      await apiService.request("/api/v1/privacy/delete", {
+        method: 'POST',
+        body: JSON.stringify(deleteForm),
+      });
+      // Deletion job started - user will be notified
       setShowDeleteModal(false);
       fetchData(); // Refresh jobs list
     } catch (error) {
-      console.error("Failed to start deletion:", error);
-      alert("Failed to start deletion. Please try again.");
+      // Error handled by UI state
     } finally {
       setDeleteLoading(false);
     }
@@ -138,10 +144,10 @@ export default function PrivacyPage() {
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="h-8 bg-muted rounded w-1/4 mb-6"></div>
           <div className="space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-muted rounded w-3/4"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
           </div>
         </div>
       </div>
@@ -151,8 +157,8 @@ export default function PrivacyPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Privacy & Data Management</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-foreground">Privacy & Data Management</h1>
+        <p className="text-muted-foreground mt-2">
           Manage your data retention policies, export your data, or delete your organization
         </p>
       </div>

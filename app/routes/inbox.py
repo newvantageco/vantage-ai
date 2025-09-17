@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.api.deps import get_db, get_current_user
 from app.models.conversations import Conversation, Message
@@ -38,9 +39,21 @@ async def get_conversation_threads(
     total = query.count()
     conversations = query.offset(offset).limit(limit).all()
     
-    # Get message counts for each conversation
+    # Get message counts for each conversation using a single query
+    conversation_ids = [conv.id for conv in conversations]
+    message_counts = db.query(
+        Message.conversation_id,
+        func.count(Message.id).label('message_count')
+    ).filter(
+        Message.conversation_id.in_(conversation_ids)
+    ).group_by(Message.conversation_id).all()
+    
+    # Create a lookup dictionary for message counts
+    count_lookup = {conv_id: count for conv_id, count in message_counts}
+    
+    # Assign message counts to conversations
     for conv in conversations:
-        conv.message_count = db.query(Message).filter(Message.conversation_id == conv.id).count()
+        conv.message_count = count_lookup.get(conv.id, 0)
     
     return {
         "threads": [conv.to_dict() for conv in conversations],

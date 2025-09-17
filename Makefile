@@ -1,7 +1,7 @@
 # Vantage AI - Development Makefile
 # Provides convenient commands for local development
 
-.PHONY: help dev dev-up dev-down dev-logs dev-clean seed-demo test lint format install
+.PHONY: help dev dev-up dev-down dev-logs dev-clean seed-demo test lint format install clean
 
 # Default target
 help:
@@ -23,6 +23,9 @@ help:
 	@echo "Setup:"
 	@echo "  install     Install dependencies for local development"
 	@echo "  setup       Initial setup (copy env, install deps)"
+	@echo ""
+	@echo "Maintenance:"
+	@echo "  clean       Clean up temporary files and cache"
 	@echo ""
 
 # Development commands
@@ -122,6 +125,11 @@ logs-web:
 logs-workers:
 	@echo "📊 Worker logs:"
 	@docker compose -f infra/docker-compose.dev.yml logs -f worker-scheduler worker-optimiser
+
+# Maintenance commands
+clean:
+	@echo "🧹 Cleaning up temporary files and cache..."
+	@./scripts/cleanup.sh
 
 # CI/CD simulation
 ci-lint:

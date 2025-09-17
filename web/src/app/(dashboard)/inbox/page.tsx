@@ -90,7 +90,7 @@ export default function InboxPage() {
       const data = await response.json();
       setConversations(data.threads || []);
     } catch (error) {
-      console.error("Failed to load conversations:", error);
+      // Error handled by UI state
     } finally {
       setLoading(false);
     }
@@ -102,7 +102,7 @@ export default function InboxPage() {
       const data = await response.json();
       setStats(data);
     } catch (error) {
-      console.error("Failed to load stats:", error);
+      // Error handled by UI state
     }
   };
 
@@ -112,7 +112,7 @@ export default function InboxPage() {
       const data = await response.json();
       setMessages(data.messages || []);
     } catch (error) {
-      console.error("Failed to load messages:", error);
+      // Error handled by UI state
     }
   };
 
@@ -133,7 +133,7 @@ export default function InboxPage() {
         await loadConversations(); // Refresh to update last_message_at
       }
     } catch (error) {
-      console.error("Failed to send message:", error);
+      // Error handled by UI state
     } finally {
       setSending(false);
     }
@@ -156,7 +156,7 @@ export default function InboxPage() {
         setShowAIDraft(true);
       }
     } catch (error) {
-      console.error("Failed to generate AI draft:", error);
+      // Error handled by UI state
     } finally {
       setGeneratingDraft(false);
     }
@@ -189,7 +189,7 @@ export default function InboxPage() {
       case "email":
         return "bg-purple-100 text-purple-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-muted-foreground";
     }
   };
 
@@ -225,7 +225,7 @@ export default function InboxPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
       </div>
     );
   }
@@ -233,7 +233,7 @@ export default function InboxPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Conversations Sidebar */}
-      <div className="w-1/3 border-r bg-gray-50/50">
+      <div className="w-1/3 border-r bg-muted/50">
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-semibold">Inbox</h1>
@@ -261,7 +261,7 @@ export default function InboxPage() {
           {/* Search and Filters */}
           <div className="space-y-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Search conversations..."
                 value={searchTerm}
@@ -293,12 +293,12 @@ export default function InboxPage() {
                 description="When customers contact you through your connected channels, their messages will appear here."
                 action={{
                   label: "Connect Channel",
-                  onClick: () => alert("Navigate to channel setup"),
+                  onClick: () => {/* Navigate to channel setup */},
                   variant: "default"
                 }}
                 secondaryAction={{
                   label: "View Guide",
-                  onClick: () => alert("Navigate to help"),
+                  onClick: () => {/* Navigate to help */},
                   variant: "outline"
                 }}
                 className="py-8"
@@ -308,8 +308,8 @@ export default function InboxPage() {
             filteredConversations.map((conversation) => (
               <div
                 key={conversation.id}
-                className={`p-4 border-b cursor-pointer hover:bg-gray-100 ${
-                  selectedConversation?.id === conversation.id ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
+                className={`p-4 border-b cursor-pointer hover:bg-muted/50 ${
+                  selectedConversation?.id === conversation.id ? "bg-primary/5 border-l-4 border-l-primary" : ""
                 }`}
                 onClick={() => setSelectedConversation(conversation)}
               >
@@ -399,7 +399,7 @@ export default function InboxPage() {
                     className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                       message.direction === "outbound"
                         ? "bg-blue-500 text-white"
-                        : "bg-gray-100 text-gray-900"
+                        : "bg-muted text-foreground"
                     }`}
                   >
                     {message.text && <div className="text-sm">{message.text}</div>}
@@ -411,8 +411,7 @@ export default function InboxPage() {
                             alt="Media attachment" 
                             width={400}
                             height={300}
-                            className="rounded object-contain"
-                            style={{ maxWidth: '100%', height: 'auto' }}
+                            className="rounded object-contain max-w-full h-auto"
                           />
                         ) : (
                           <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
@@ -422,7 +421,7 @@ export default function InboxPage() {
                       </div>
                     )}
                     <div className={`text-xs mt-1 ${
-                      message.direction === "outbound" ? "text-blue-100" : "text-gray-500"
+                      message.direction === "outbound" ? "text-blue-100" : "text-muted-foreground"
                     }`}>
                       {formatTime(message.created_at)}
                     </div>

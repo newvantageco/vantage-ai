@@ -146,7 +146,7 @@ export default function TemplatesPage() {
       const data = await response.json();
       setTemplates(data.templates || []);
     } catch (error) {
-      console.error("Failed to load templates:", error);
+      // Error handled by UI state
       toast.error("Failed to load templates");
     } finally {
       setLoading(false);
@@ -170,7 +170,7 @@ export default function TemplatesPage() {
         toast.error("Failed to create template", { id: "create-template" });
       }
     } catch (error) {
-      console.error("Failed to create template:", error);
+      // Error handled by UI state
       toast.error("Failed to create template", { id: "create-template" });
     }
   };
@@ -195,7 +195,7 @@ export default function TemplatesPage() {
         toast.error("Failed to generate preview", { id: "generate-preview" });
       }
     } catch (error) {
-      console.error("Failed to generate preview:", error);
+      // Error handled by UI state
       toast.error("Failed to generate preview", { id: "generate-preview" });
     } finally {
       setGenerating(false);

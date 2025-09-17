@@ -18,13 +18,13 @@ export default function UserMenu() {
           </span>
           <button
             onClick={devAuth.signOut}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             Sign Out
           </button>
         </div>
       ) : (
-        <div className="text-sm text-gray-500">Loading...</div>
+        <div className="text-sm text-muted-foreground">Loading...</div>
       )}
     </div>
   );

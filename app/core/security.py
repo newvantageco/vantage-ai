@@ -74,7 +74,11 @@ def get_current_user_optional(request: Request) -> Optional[Dict[str, Any]]:
 			"org_id": claims.org_id,
 			"email": claims.email
 		}
-	except:
+	except Exception as e:
+		# Log the error for debugging but don't expose it to the client
+		import logging
+		logger = logging.getLogger(__name__)
+		logger.debug(f"Authentication failed: {e}")
 		return None
 
 

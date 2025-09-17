@@ -51,7 +51,7 @@ export function PWAProvider({ children }: PWAProviderProps) {
     // Register service worker
     registerServiceWorker().then((registration) => {
       if (registration) {
-        console.log('Service Worker registered successfully');
+        // Service Worker registered successfully
       }
     });
 
@@ -90,7 +90,7 @@ export function PWAProvider({ children }: PWAProviderProps) {
         setInstallPrompt(null);
       }
     } catch (error) {
-      console.error('Failed to install app:', error);
+      // Error handled by UI state
     }
   };
 
@@ -104,7 +104,7 @@ export function PWAProvider({ children }: PWAProviderProps) {
         }
       }
     } catch (error) {
-      console.error('Failed to update app:', error);
+      // Error handled by UI state
     }
   };
 

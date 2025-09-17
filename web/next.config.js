@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: false, // Disable SWC temporarily
+  swcMinify: true,
   compiler: {
     removeConsole: false,
   },
@@ -10,6 +10,11 @@ const nextConfig = {
   },
   // Minimal configuration for debugging
   output: 'standalone',
+  trailingSlash: false,
+  // Skip static optimization
+  skipTrailingSlashRedirect: true,
+  // Disable static optimization
+  staticPageGenerationTimeout: 1000,
 };
 
 module.exports = nextConfig;

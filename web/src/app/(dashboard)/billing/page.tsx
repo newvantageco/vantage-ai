@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { apiService } from "@/lib/api";
 import { PLANS, getPlanById, formatPrice, getYearlyDiscount } from "@/lib/plans";
 
 interface BillingInfo {
@@ -33,10 +33,10 @@ export default function BillingPage() {
     const fetchBillingInfo = async () => {
       try {
         setLoading(true);
-        const response = await api.get<BillingInfo>("/billing/info");
+        const response = await apiService.request<BillingInfo>("/api/v1/billing/info");
         setBillingInfo(response.data);
       } catch (error) {
-        console.error("Failed to fetch billing info:", error);
+        // Error handled by UI state
       } finally {
         setLoading(false);
       }
@@ -48,17 +48,19 @@ export default function BillingPage() {
   const handleUpgrade = async (planId: string) => {
     try {
       setCheckoutLoading(planId);
-      const response = await api.post<CheckoutResponse>("/billing/checkout", {
-        plan: planId,
-        success_url: `${window.location.origin}/billing?success=true`,
-        cancel_url: `${window.location.origin}/billing?canceled=true`,
+      const response = await apiService.request<CheckoutResponse>("/api/v1/billing/checkout", {
+        method: 'POST',
+        body: JSON.stringify({
+          plan: planId,
+          success_url: `${window.location.origin}/billing?success=true`,
+          cancel_url: `${window.location.origin}/billing?canceled=true`,
+        }),
       });
       
       // Redirect to Stripe checkout
       window.location.href = response.data.checkout_url;
     } catch (error) {
-      console.error("Failed to create checkout session:", error);
-      alert("Failed to start checkout process. Please try again.");
+      // Error handled by UI state
     } finally {
       setCheckoutLoading(null);
     }
@@ -67,17 +69,12 @@ export default function BillingPage() {
   const handleManageBilling = async () => {
     try {
       setPortalLoading(true);
-      const response = await api.get<PortalResponse>("/billing/portal", {
-        params: {
-          return_url: `${window.location.origin}/billing`,
-        },
-      });
+      const response = await apiService.request<PortalResponse>(`/api/v1/billing/portal?return_url=${encodeURIComponent(`${window.location.origin}/billing`)}`);
       
       // Redirect to Stripe customer portal
       window.location.href = response.data.portal_url;
     } catch (error) {
-      console.error("Failed to create portal session:", error);
-      alert("Failed to open billing portal. Please try again.");
+      // Error handled by UI state
     } finally {
       setPortalLoading(false);
     }

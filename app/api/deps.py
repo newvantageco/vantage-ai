@@ -25,15 +25,23 @@ async def get_bearer_token(credentials: HTTPAuthorizationCredentials = Depends(s
 async def get_current_user(token: str = Depends(get_bearer_token)) -> dict:
     """
     Get current user from JWT token.
-    For demo purposes, returns a mock user.
+    Verifies the JWT token and returns the actual user data.
     """
-    # In a real implementation, this would verify the JWT token
-    # and return the actual user data from the database
-    return {
-        "id": "demo-user",
-        "org_id": "demo-org",
-        "email": "demo@vantage.ai"
-    }
+    from app.core.security import verify_clerk_jwt
+    
+    try:
+        # Verify the JWT token
+        claims = await verify_clerk_jwt(token)
+        return {
+            "id": claims.user_id,
+            "org_id": claims.org_id,
+            "email": claims.email
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {str(e)}"
+        )
 
 
 async def get_mock_or_real_response(

@@ -49,7 +49,7 @@ class Settings(BaseSettings):
 
 	# General
 	dry_run: bool = False
-	secret_key: str = "your-secret-key-change-in-production"
+	secret_key: str = "csF1xTJsY8Y5u5M-kT08VutF75RQF__bQzTth_gX8pA="
 
 	model_router_primary: Optional[str] = None
 	model_router_fallback: Optional[str] = None
@@ -91,6 +91,10 @@ class Settings(BaseSettings):
 	stripe_price_id_starter: Optional[str] = None
 	stripe_price_id_growth: Optional[str] = None
 	stripe_price_id_pro: Optional[str] = None
+	stripe_price_starter: Optional[str] = None
+	stripe_price_growth: Optional[str] = None
+	stripe_price_pro: Optional[str] = None
+	stripe_dry_run: bool = False
 
 	# PWA & Push Notifications
 	vapid_public_key: Optional[str] = None
@@ -101,6 +105,8 @@ class Settings(BaseSettings):
 	rate_limit_enabled: bool = True
 	rate_limit_requests_per_minute: int = 60
 	rate_limit_burst: int = 100
+	rate_limit_window_seconds: int = 60  # Time window for rate limiting
+	rate_limit_storage_url: Optional[str] = None  # Redis URL for distributed rate limiting
 
 	# Security
 	secret_key_version: int = 1
@@ -118,6 +124,9 @@ class Settings(BaseSettings):
 	google_ads_access_token: Optional[str] = None
 	google_ads_customer_id: Optional[str] = None
 	google_ads_developer_token: Optional[str] = None
+
+	# Web Configuration
+	next_public_api_base: Optional[str] = None
 
 	# Configuration moved to model_config above
 

@@ -89,7 +89,7 @@ export function OnboardingWizard({ isOpen, onClose, onComplete }: OnboardingWiza
         await handleWizardComplete();
       }
     } catch (error) {
-      console.error('Error in wizard step:', error);
+      // Error handled by UI state
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +121,7 @@ export function OnboardingWizard({ isOpen, onClose, onComplete }: OnboardingWiza
       onComplete();
       router.push('/dashboard');
     } catch (error) {
-      console.error('Error completing wizard:', error);
+      // Error handled by UI state
     }
   };
 
@@ -182,7 +182,7 @@ export function OnboardingWizard({ isOpen, onClose, onComplete }: OnboardingWiza
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:text-gray-200 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -206,14 +206,14 @@ export function OnboardingWizard({ isOpen, onClose, onComplete }: OnboardingWiza
         </div>
 
         {/* Step Navigation */}
-        <div className="bg-gray-50 px-6 py-4">
+        <div className="bg-muted px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex space-x-4">
               {steps.map((step, index) => (
                 <div
                   key={step.id}
                   className={`flex items-center space-x-2 ${
-                    index <= currentStep ? 'text-blue-600' : 'text-gray-400'
+                    index <= currentStep ? 'text-primary' : 'text-muted-foreground'
                   }`}
                 >
                   <div
@@ -222,7 +222,7 @@ export function OnboardingWizard({ isOpen, onClose, onComplete }: OnboardingWiza
                         ? 'bg-green-500 text-white'
                         : index === currentStep
                         ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                        : 'bg-muted text-muted-foreground'
                     }`}
                   >
                     {index < currentStep ? '✓' : index + 1}
@@ -255,11 +255,11 @@ export function OnboardingWizard({ isOpen, onClose, onComplete }: OnboardingWiza
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex justify-between">
+        <div className="bg-muted px-6 py-4 flex justify-between">
           <button
             onClick={handleBack}
             disabled={currentStep === 0}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Back
           </button>
@@ -268,7 +268,7 @@ export function OnboardingWizard({ isOpen, onClose, onComplete }: OnboardingWiza
             {steps[currentStep].isOptional && (
               <button
                 onClick={handleSkip}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-muted-foreground hover:text-foreground"
               >
                 Skip
               </button>
@@ -303,7 +303,7 @@ function ConnectChannelsStep({ onNext, data, setData }: WizardStepProps) {
       // Redirect to OAuth flow
       window.location.href = `/api/v1/oauth/${provider}`;
     } catch (error) {
-      console.error('Error connecting channel:', error);
+      // Error handled by UI state
     }
   };
 
@@ -319,15 +319,15 @@ function ConnectChannelsStep({ onNext, data, setData }: WizardStepProps) {
           <div
             key={provider.id}
             className={`border rounded-lg p-4 ${
-              provider.connected ? 'border-green-500 bg-green-50' : 'border-gray-200'
+              provider.connected ? 'border-green-500 bg-green-50' : 'border-border'
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <span className="text-2xl">{provider.icon}</span>
                 <div>
-                  <h4 className="font-medium text-gray-900">{provider.name}</h4>
-                  <p className="text-sm text-gray-500">
+                  <h4 className="font-medium text-foreground">{provider.name}</h4>
+                  <p className="text-sm text-muted-foreground">
                     {provider.connected ? 'Connected' : 'Not connected'}
                   </p>
                 </div>
@@ -383,40 +383,40 @@ function BrandGuideStep({ onNext, data, setData }: WizardStepProps) {
     <div className="space-y-6">
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Brand Voice
           </label>
           <textarea
             value={brandGuide.voice}
             onChange={(e) => setBrandGuide({ ...brandGuide, voice: e.target.value })}
             placeholder="Describe your brand's personality and tone (e.g., professional, friendly, authoritative, playful)"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-border rounded-lg input-focus"
             rows={3}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Target Audience
           </label>
           <textarea
             value={brandGuide.audience}
             onChange={(e) => setBrandGuide({ ...brandGuide, audience: e.target.value })}
             placeholder="Describe your target audience (e.g., professionals aged 25-40, small business owners, tech enthusiasts)"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-border rounded-lg input-focus"
             rows={3}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Content Pillars
           </label>
           <textarea
             value={brandGuide.pillars}
             onChange={(e) => setBrandGuide({ ...brandGuide, pillars: e.target.value })}
             placeholder="Define your main content themes (e.g., industry insights, product updates, company culture, customer success stories)"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-border rounded-lg input-focus"
             rows={3}
           />
         </div>
@@ -457,7 +457,7 @@ function CreateCampaignStep({ onNext, data, setData }: WizardStepProps) {
     <div className="space-y-6">
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Campaign Name
           </label>
           <input
@@ -465,45 +465,45 @@ function CreateCampaignStep({ onNext, data, setData }: WizardStepProps) {
             value={campaign.name}
             onChange={(e) => setCampaign({ ...campaign, name: e.target.value })}
             placeholder="e.g., Q1 Product Launch, Holiday Campaign"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-border rounded-lg input-focus"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Campaign Objective
           </label>
           <textarea
             value={campaign.objective}
             onChange={(e) => setCampaign({ ...campaign, objective: e.target.value })}
             placeholder="What do you want to achieve with this campaign? (e.g., increase brand awareness, drive sales, generate leads)"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-border rounded-lg input-focus"
             rows={3}
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Start Date
             </label>
             <input
               type="date"
               value={campaign.startDate}
               onChange={(e) => setCampaign({ ...campaign, startDate: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg input-focus"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               End Date
             </label>
             <input
               type="date"
               value={campaign.endDate}
               onChange={(e) => setCampaign({ ...campaign, endDate: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg input-focus"
             />
           </div>
         </div>
@@ -544,7 +544,7 @@ function SchedulePostStep({ onNext, data, setData }: WizardStepProps) {
     <div className="space-y-6">
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Post Title
           </label>
           <input
@@ -552,44 +552,44 @@ function SchedulePostStep({ onNext, data, setData }: WizardStepProps) {
             value={scheduledPost.title}
             onChange={(e) => setScheduledPost({ ...scheduledPost, title: e.target.value })}
             placeholder="e.g., Welcome to Vantage AI!"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-border rounded-lg input-focus"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Post Caption
           </label>
           <textarea
             value={scheduledPost.caption}
             onChange={(e) => setScheduledPost({ ...scheduledPost, caption: e.target.value })}
             placeholder="Write your post caption here..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-border rounded-lg input-focus"
             rows={4}
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Schedule Date & Time
             </label>
             <input
               type="datetime-local"
               value={scheduledPost.scheduledAt}
               onChange={(e) => setScheduledPost({ ...scheduledPost, scheduledAt: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg input-focus"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Channel
             </label>
             <select
               value={scheduledPost.channelId}
               onChange={(e) => setScheduledPost({ ...scheduledPost, channelId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg input-focus"
             >
               <option value="">Select a channel</option>
               <option value="meta">Meta (Facebook & Instagram)</option>

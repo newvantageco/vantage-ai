@@ -1,64 +1,81 @@
 version: '3.8'
 
 services:
-  # Web Frontend (Standalone)
-  web:
-    image: sabanali/vantage-ai-web:latest
-    container_name: vantage-ai-web
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8001
-      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_demo
-      - NODE_ENV=development
-      - NEXT_PUBLIC_DEBUG=true
-    ports:
-      - "3001:3000"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - vantage-network
-
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: vantage-ai-postgres
+    container_name: vantage-postgres-simple
     environment:
-      - POSTGRES_DB=vantage_ai
-      - POSTGRES_USER=vantage_user
-      - POSTGRES_PASSWORD=vantage_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_DB: vantage_ai
+      POSTGRES_USER: vantage_user
+      POSTGRES_PASSWORD: vantage_password
     ports:
       - "5433:5432"
-    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vantage_user -d vantage_ai"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - vantage-network
+    restart: unless-stopped
 
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: vantage-ai-redis
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
+    container_name: vantage-redis-simple
     ports:
       - "6380:6379"
-    restart: unless-stopped
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - vantage-network
+    restart: unless-stopped
+
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      target: production
+    container_name: vantage-api-simple
+    environment:
+      - DATABASE_URL=postgresql+psycopg://vantage_user:vantage_password@postgres:5432/vantage_ai
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - SECRET_KEY=flL6hGji6oVSIdC0NisVkv-8HvLa2vffd9jniwzlID4=
+      - CLERK_PUBLISHABLE_KEY=pk_test_ZGVjaWRpbmctdHJvbGwtMy5jbGVyay5hY2NvdW50cy5kZXYk
+      - CLERK_SECRET_KEY=sk_test_HBljblBkPRkVX3fB4ne686mcoyzB6sjHZBwfLXAH1a
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Simple Web Server (Nginx)
+  web:
+    image: nginx:alpine
+    container_name: vantage-web-simple
+    ports:
+      - "3000:80"
+    volumes:
+      - ./web/public:/usr/share/nginx/html:ro
+      - ./nginx-simple.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
 
 volumes:
   postgres_data:
@@ -67,5 +84,5 @@ volumes:
     driver: local
 
 networks:
-  vantage-network:
-    driver: bridge
+  default:
+    name: vantage-simple-network

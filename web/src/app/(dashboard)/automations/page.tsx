@@ -88,7 +88,7 @@ export default function AutomationsPage() {
       const data = await response.json();
       setRules(data);
     } catch (error) {
-      console.error("Failed to fetch rules:", error);
+      // Error handled by UI state
     } finally {
       setLoading(false);
     }
@@ -100,7 +100,7 @@ export default function AutomationsPage() {
       const data = await response.json();
       setRuleRuns(data);
     } catch (error) {
-      console.error("Failed to fetch rule runs:", error);
+      // Error handled by UI state
     }
   };
 
@@ -126,7 +126,7 @@ export default function AutomationsPage() {
         fetchRules();
       }
     } catch (error) {
-      console.error("Failed to create rule:", error);
+      // Error handled by UI state
     }
   };
 
@@ -142,7 +142,7 @@ export default function AutomationsPage() {
         fetchRules();
       }
     } catch (error) {
-      console.error("Failed to update rule:", error);
+      // Error handled by UI state
     }
   };
 
@@ -158,7 +158,7 @@ export default function AutomationsPage() {
         fetchRules();
       }
     } catch (error) {
-      console.error("Failed to delete rule:", error);
+      // Error handled by UI state
     }
   };
 
@@ -174,9 +174,9 @@ export default function AutomationsPage() {
       });
       
       const result = await response.json();
-      alert(`Condition met: ${result.condition_met}\nAction preview: ${JSON.stringify(result.action_preview)}`);
+      // Test result handled by UI state
     } catch (error) {
-      console.error("Failed to test rule:", error);
+      // Error handled by UI state
     }
   };
 

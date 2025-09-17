@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, ChevronDown, Bell, Settings, LogOut, User, Building2, Plus } from "lucide-react";
+import { Search, ChevronDown, Bell, Settings, LogOut, User, Building2, Plus, SearchIcon, BellIcon, SettingsIcon, UserIcon, BuildingIcon, PlusIcon } from "lucide-react";
 import { useDevAuth } from "../DevAuthWrapper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,14 +40,14 @@ export function Topbar({ onSearchFocus }: TopbarProps) {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="sticky top-0 z-40 w-full border-b border-slate-200/50 bg-white/80 backdrop-blur-sm">
       <div className="flex h-16 items-center px-4 gap-4">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">V</span>
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg">
+            <span className="text-white font-bold text-sm">V</span>
           </div>
-          <span className="font-semibold text-lg hidden sm:block">Vantage AI</span>
+          <span className="font-semibold text-lg text-slate-900 hidden sm:block">Vantage AI</span>
         </div>
 
         {/* Organization Switcher */}

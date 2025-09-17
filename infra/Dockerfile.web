@@ -5,14 +5,14 @@ WORKDIR /app
 # Install curl for health checks
 RUN apk add --no-cache curl
 
-# Copy package files from web directory
-COPY web/package.json web/pnpm-lock.yaml ./
+# Copy package files
+COPY package.json package-lock.json ./
 
 # Install dependencies
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+RUN npm install
 
 # Copy web source code
-COPY web/ .
+COPY . .
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -23,7 +23,7 @@ RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 # Build the application
-RUN pnpm build
+RUN npm run build
 
 # Expose port
 EXPOSE 3000
@@ -33,4 +33,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000 || exit 1
 
 # Run the application
-CMD ["pnpm", "start"]
+CMD ["node", ".next/standalone/server.js"]

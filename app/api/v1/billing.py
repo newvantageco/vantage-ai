@@ -75,17 +75,23 @@ async def create_checkout(
     claims=Depends(get_auth_claims)
 ):
     """Create a Stripe checkout session for subscription upgrade."""
-    org_id = claims.get("org_id", "demo-org")  # TODO: Get from auth context
+    org_id = claims.get("org_id")
+    if not org_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Organization ID not found in token"
+        )
     
     # Get or create billing record
     billing = get_or_create_billing_record(db, org_id)
     
     # If no Stripe customer ID, create one
     if not billing.stripe_customer_id:
-        # TODO: Get user email and name from auth context
+        user_email = claims.get("email", "user@example.com")
+        user_name = claims.get("name", "User")
         customer = await get_client().create_customer(
-            email="demo@example.com",
-            name="Demo User",
+            email=user_email,
+            name=user_name,
             org_id=org_id
         )
         billing.stripe_customer_id = customer["id"]
@@ -112,7 +118,12 @@ async def create_portal_session(
     claims=Depends(get_auth_claims)
 ):
     """Create a Stripe customer portal session for billing management."""
-    org_id = claims.get("org_id", "demo-org")  # TODO: Get from auth context
+    org_id = claims.get("org_id")
+    if not org_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Organization ID not found in token"
+        )
     
     billing = db.query(OrganizationBilling).filter(OrganizationBilling.org_id == org_id).first()
     if not billing or not billing.stripe_customer_id:

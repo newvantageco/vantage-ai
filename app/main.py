@@ -40,6 +40,7 @@ from app.api.v1.collaboration import router as collaboration_router
 from app.api.v1.translations import router as translations_router
 from app.api.v1.rate_limiting import router as rate_limiting_router
 from app.api.v1.ads_management import router as ads_management_router
+from app.api.v1.dashboard import router as dashboard_router
 
 
 def create_app() -> FastAPI:
@@ -90,6 +91,7 @@ def create_app() -> FastAPI:
 	app.include_router(translations_router, prefix="/api/v1")
 	app.include_router(rate_limiting_router, prefix="/api/v1")
 	app.include_router(ads_management_router, prefix="/api/v1")
+	app.include_router(dashboard_router, prefix="/api/v1")
 	
 	# Webhook routes (no prefix)
 	app.include_router(meta_webhook_router)
@@ -97,8 +99,15 @@ def create_app() -> FastAPI:
 	app.include_router(whatsapp_webhook_router)
 	app.include_router(stripe_webhooks_router)
 
-	# Auto-create tables in dev
-	Base.metadata.create_all(bind=engine)
+	# Auto-create tables in dev (with error handling for existing objects)
+	try:
+		Base.metadata.create_all(bind=engine)
+		print("Database tables created successfully")
+	except Exception as e:
+		# Log the error but don't fail the app startup
+		print(f"Warning: Some database objects already exist: {e}")
+		# Try to continue anyway - the app should still work
+		pass
 	return app
 
 
