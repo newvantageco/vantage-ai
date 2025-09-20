@@ -1,224 +1,301 @@
-from __future__ import annotations
+"""
+Billing Models
+Handles Stripe integration, subscriptions, and payment processing
+"""
 
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Optional
-
-from sqlalchemy import String, DateTime, ForeignKey, Enum as SAEnum, Boolean, Integer, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.db.base import Base
-
-
-class BillingStatus(str, Enum):
-    ACTIVE = "active"
-    CANCELED = "canceled"
-    PAST_DUE = "past_due"
-    UNPAID = "unpaid"
-    INCOMPLETE = "incomplete"
-    TRIALING = "trialing"
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, Boolean, ForeignKey, Enum, Float
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.db.base_class import Base
+import enum
 
 
-class PlanTier(str, Enum):
+class PlanType(str, enum.Enum):
     STARTER = "starter"
     GROWTH = "growth"
     PRO = "pro"
 
 
+class SubscriptionStatus(str, enum.Enum):
+    TRIAL = "trial"
+    ACTIVE = "active"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    UNPAID = "unpaid"
+    INCOMPLETE = "incomplete"
+    INCOMPLETE_EXPIRED = "incomplete_expired"
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    
+    # Stripe details
+    stripe_subscription_id = Column(String(255), unique=True, nullable=True, index=True)
+    stripe_customer_id = Column(String(255), nullable=False, index=True)
+    
+    # Plan details
+    plan_id = Column(Integer, ForeignKey("plans.id"), nullable=False)
+    status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.TRIAL)
+    
+    # Pricing
+    amount = Column(Integer, nullable=False)  # Amount in cents
+    currency = Column(String(3), default="USD")
+    interval = Column(String(20), default="month")  # month, year
+    
+    # Trial
+    trial_start = Column(DateTime(timezone=True), nullable=True)
+    trial_end = Column(DateTime(timezone=True), nullable=True)
+    
+    # Billing dates
+    current_period_start = Column(DateTime(timezone=True), nullable=True)
+    current_period_end = Column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end = Column(Boolean, default=False)
+    canceled_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Usage limits
+    monthly_posts_limit = Column(Integer, nullable=True)
+    monthly_ai_requests_limit = Column(Integer, nullable=True)
+    team_members_limit = Column(Integer, nullable=True)
+    integrations_limit = Column(Integer, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    organization = relationship("Organization")
+    plan = relationship("Plan", back_populates="subscriptions")
+
+
+class Invoice(Base):
+    __tablename__ = "invoices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    subscription_id = Column(Integer, ForeignKey("subscriptions.id"), nullable=True)
+    
+    # Stripe details
+    stripe_invoice_id = Column(String(255), unique=True, nullable=True, index=True)
+    stripe_payment_intent_id = Column(String(255), nullable=True)
+    
+    # Invoice details
+    invoice_number = Column(String(100), nullable=True)
+    amount_due = Column(Integer, nullable=False)  # Amount in cents
+    amount_paid = Column(Integer, default=0)  # Amount paid in cents
+    currency = Column(String(3), default="USD")
+    
+    # Status
+    status = Column(String(20), default="draft")  # draft, open, paid, void, uncollectible
+    paid = Column(Boolean, default=False)
+    
+    # Dates
+    due_date = Column(DateTime(timezone=True), nullable=True)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # PDF
+    invoice_pdf_url = Column(String(500), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    organization = relationship("Organization")
+    subscription = relationship("Subscription")
+
+
+class PaymentMethod(Base):
+    __tablename__ = "payment_methods"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    
+    # Stripe details
+    stripe_payment_method_id = Column(String(255), unique=True, nullable=False, index=True)
+    
+    # Payment method details
+    type = Column(String(50), nullable=False)  # card, bank_account, etc.
+    brand = Column(String(50), nullable=True)  # visa, mastercard, etc.
+    last4 = Column(String(4), nullable=True)
+    exp_month = Column(Integer, nullable=True)
+    exp_year = Column(Integer, nullable=True)
+    
+    # Status
+    is_default = Column(Boolean, default=False)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    organization = relationship("Organization")
+
+
+class UsageRecord(Base):
+    __tablename__ = "usage_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    subscription_id = Column(Integer, ForeignKey("subscriptions.id"), nullable=False)
+    
+    # Usage period
+    period_start = Column(DateTime(timezone=True), nullable=False)
+    period_end = Column(DateTime(timezone=True), nullable=False)
+    
+    # Usage metrics
+    posts_used = Column(Integer, default=0)
+    ai_requests_used = Column(Integer, default=0)
+    team_members_used = Column(Integer, default=0)
+    integrations_used = Column(Integer, default=0)
+    
+    # Overage charges
+    posts_overage = Column(Integer, default=0)
+    ai_requests_overage = Column(Integer, default=0)
+    overage_amount = Column(Integer, default=0)  # Overage charges in cents
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    organization = relationship("Organization")
+    subscription = relationship("Subscription")
+
+
+class BillingEvent(Base):
+    __tablename__ = "billing_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    
+    # Event details
+    event_type = Column(String(100), nullable=False)  # subscription.created, invoice.paid, etc.
+    stripe_event_id = Column(String(255), unique=True, nullable=True, index=True)
+    
+    # Event data
+    data = Column(JSON, nullable=False)
+    
+    # Processing status
+    processed = Column(Boolean, default=False)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    organization = relationship("Organization")
+
+
 class OrganizationBilling(Base):
-    """Organization billing information and subscription status."""
+    """Organization billing information"""
     __tablename__ = "organization_billing"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True, unique=True)
-    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
-    stripe_subscription_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
-    plan: Mapped[PlanTier] = mapped_column(SAEnum(PlanTier, name="plan_tier"), default=PlanTier.STARTER, nullable=False)
-    status: Mapped[BillingStatus] = mapped_column(SAEnum(BillingStatus, name="billing_status"), default=BillingStatus.ACTIVE, nullable=False)
-    current_period_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    current_period_end: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
-    # Trial information
-    trial_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    trial_end: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    trial_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    stripe_customer_id = Column(String, unique=True, nullable=True)
+    billing_email = Column(String, nullable=True)
+    billing_address = Column(JSON, nullable=True)
+    payment_method_id = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Coupon information
-    coupon_code: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
-    coupon_discount_percent: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    coupon_discount_amount_cents: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    coupon_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    
-    # Billing history
-    last_payment_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    last_payment_amount_cents: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    next_payment_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    next_payment_amount_cents: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    
-    # Metadata
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationship to organization
-    organization: Mapped["Organization"] = relationship(back_populates="billing")  # type: ignore[name-defined]
-
-    def is_active(self) -> bool:
-        """Check if the subscription is currently active."""
-        return self.status in [BillingStatus.ACTIVE, BillingStatus.TRIALING]
-    
-    def is_past_due(self) -> bool:
-        """Check if the subscription is past due."""
-        return self.status == BillingStatus.PAST_DUE
-    
-    def is_trial_active(self) -> bool:
-        """Check if the organization is currently in trial period."""
-        if not self.trial_end or self.trial_used:
-            return False
-        return datetime.utcnow() < self.trial_end
-    
-    def days_until_renewal(self) -> Optional[int]:
-        """Get days until the next billing period."""
-        if not self.current_period_end:
-            return None
-        delta = self.current_period_end - datetime.utcnow()
-        return max(0, delta.days)
-    
-    def days_until_trial_end(self) -> Optional[int]:
-        """Get days until trial ends."""
-        if not self.trial_end or self.trial_used:
-            return None
-        delta = self.trial_end - datetime.utcnow()
-        return max(0, delta.days)
-    
-    def start_trial(self, days: int = 14) -> None:
-        """Start a trial period for the organization."""
-        self.trial_start = datetime.utcnow()
-        self.trial_end = self.trial_start + timedelta(days=days)
-        self.trial_used = True
-        self.status = BillingStatus.TRIALING
-    
-    def apply_coupon(self, code: str, discount_percent: Optional[int] = None, 
-                    discount_amount_cents: Optional[int] = None, expires_at: Optional[datetime] = None) -> None:
-        """Apply a coupon to the subscription."""
-        self.coupon_code = code
-        self.coupon_discount_percent = discount_percent
-        self.coupon_discount_amount_cents = discount_amount_cents
-        self.coupon_expires_at = expires_at
-    
-    def remove_coupon(self) -> None:
-        """Remove the current coupon."""
-        self.coupon_code = None
-        self.coupon_discount_percent = None
-        self.coupon_discount_amount_cents = None
-        self.coupon_expires_at = None
+    # Relationships
+    organization = relationship("Organization")
 
 
 class Coupon(Base):
-    """Coupon codes for discounts."""
+    """Discount coupons"""
     __tablename__ = "coupons"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
-    # Discount details
-    discount_type: Mapped[str] = mapped_column(String(20), nullable=False)  # percent, amount
-    discount_value: Mapped[int] = mapped_column(Integer, nullable=False)  # percentage or cents
-    
-    # Validity
-    valid_from: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    valid_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    max_uses: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    used_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    
-    # Applicability
-    applicable_plans: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
-    min_amount_cents: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    
-    # Status
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def is_valid(self) -> bool:
-        """Check if the coupon is currently valid."""
-        if not self.is_active:
-            return False
-        
-        now = datetime.utcnow()
-        if now < self.valid_from:
-            return False
-        
-        if self.valid_until and now > self.valid_until:
-            return False
-        
-        if self.max_uses and self.used_count >= self.max_uses:
-            return False
-        
-        return True
-    
-    def can_be_used(self, plan: PlanTier, amount_cents: int) -> bool:
-        """Check if the coupon can be used for a specific plan and amount."""
-        if not self.is_valid():
-            return False
-        
-        # Check plan applicability
-        if self.applicable_plans:
-            import json
-            try:
-                plans = json.loads(self.applicable_plans)
-                if plan.value not in plans:
-                    return False
-            except (json.JSONDecodeError, TypeError):
-                pass
-        
-        # Check minimum amount
-        if self.min_amount_cents and amount_cents < self.min_amount_cents:
-            return False
-        
-        return True
-    
-    def calculate_discount(self, amount_cents: int) -> int:
-        """Calculate the discount amount in cents."""
-        if self.discount_type == "percent":
-            return int(amount_cents * self.discount_value / 100)
-        elif self.discount_type == "amount":
-            return min(self.discount_value, amount_cents)
-        else:
-            return 0
-    
-    def use_coupon(self) -> None:
-        """Mark the coupon as used."""
-        self.used_count += 1
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    discount_type = Column(String, nullable=False)  # "percentage", "fixed"
+    discount_value = Column(Float, nullable=False)
+    max_uses = Column(Integer, nullable=True)
+    used_count = Column(Integer, default=0)
+    valid_from = Column(DateTime(timezone=True), nullable=True)
+    valid_until = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
 class BillingHistory(Base):
-    """Billing history for organizations."""
+    """Billing history for organizations"""
     __tablename__ = "billing_history"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    stripe_invoice_id = Column(String, nullable=True)
+    amount = Column(Integer, nullable=False)  # Amount in cents
+    currency = Column(String, default="usd")
+    status = Column(String, nullable=False)  # "paid", "pending", "failed"
+    invoice_url = Column(String, nullable=True)
+    period_start = Column(DateTime(timezone=True), nullable=True)
+    period_end = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Transaction details
-    stripe_payment_intent_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
-    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
-    currency: Mapped[str] = mapped_column(String(3), default="usd", nullable=False)
+    # Relationships
+    organization = relationship("Organization")
+
+
+class Plan(Base):
+    """Subscription plans"""
+    __tablename__ = "plans"
     
-    # Description
-    description: Mapped[str] = mapped_column(String(500), nullable=False)
-    plan: Mapped[PlanTier] = mapped_column(SAEnum(PlanTier, name="plan_tier"), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False, unique=True)  # growth, pro
+    display_name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    price = Column(Integer, nullable=False)  # Price in cents
+    currency = Column(String(3), default="USD")
+    billing_interval = Column(String(20), default="month")  # month, year
+    stripe_price_id = Column(String(255), nullable=True, unique=True)
+    
+    # Features and limits
+    features = Column(JSON, nullable=True)  # List of features
+    ai_request_limit = Column(Integer, nullable=True)
+    ai_token_limit = Column(Integer, nullable=True)
+    content_post_limit = Column(Integer, nullable=True)
+    team_member_limit = Column(Integer, nullable=True)
+    integration_limit = Column(Integer, nullable=True)
     
     # Status
-    status: Mapped[str] = mapped_column(String(20), nullable=False)  # succeeded, failed, pending, refunded
-    
-    # Coupon information
-    coupon_code: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    discount_amount_cents: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
     
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    subscriptions = relationship("Subscription", back_populates="plan")
+
+
+class PlanTier(str, enum.Enum):
+    """Subscription plan tiers"""
+    STARTER = "starter"
+    GROWTH = "growth"
+    PRO = "pro"
+
+
+class BillingStatus(Base):
+    """Billing status tracking"""
+    __tablename__ = "billing_status"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    status = Column(String, nullable=False)  # "active", "trial", "past_due", "canceled"
+    trial_ends_at = Column(DateTime(timezone=True), nullable=True)
+    last_payment_at = Column(DateTime(timezone=True), nullable=True)
+    next_payment_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    organization = relationship("Organization")

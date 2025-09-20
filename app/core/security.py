@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import httpx
-import jwt
+from jose import jwt
 from fastapi import HTTPException, status, Request
 
 from app.core.config import get_settings
@@ -18,14 +18,14 @@ class AuthClaims:
 	email: Optional[str]
 
 
-async def verify_clerk_jwt(token: str) -> AuthClaims:
+def verify_clerk_jwt(token: str) -> AuthClaims:
 	settings = get_settings()
 	if not settings.clerk_jwks_url or not settings.clerk_issuer:
 		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Auth not configured")
 
-	async with httpx.AsyncClient(timeout=5) as client:
-		jwks_resp = await client.get(settings.clerk_jwks_url)
-		jwks = jwks_resp.json()
+	import requests
+	response = requests.get(settings.clerk_jwks_url, timeout=5)
+	jwks = response.json()
 
 	unverified_header = jwt.get_unverified_header(token)
 	kid = unverified_header.get("kid")

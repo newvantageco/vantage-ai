@@ -1,484 +1,525 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+"""
+Enhanced Billing API endpoints
+Handles Stripe checkout sessions, portal links, and subscription management
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
-import secrets
+from pydantic import BaseModel
+import stripe
 
 from app.db.session import get_db
-from app.models.billing import OrganizationBilling, Coupon, BillingHistory, PlanTier, BillingStatus
+from app.api.deps import get_current_user, get_current_user_mock
+from app.services.billing_service import BillingService
+from app.models.billing import Plan, SubscriptionStatus
 from app.models.entities import Organization
-from app.api.deps import get_current_user
-from pydantic import BaseModel
 
 router = APIRouter()
 
 
-class TrialStartRequest(BaseModel):
-    days: int = 14
-
-
-class CouponApplyRequest(BaseModel):
-    code: str
-
-
-class PlanUpgradeRequest(BaseModel):
+class CheckoutSessionRequest(BaseModel):
     plan: str
-    coupon_code: Optional[str] = None
+    success_url: str
+    cancel_url: str
+    customer_email: Optional[str] = None
+
+
+class CheckoutSessionResponse(BaseModel):
+    checkout_url: str
+    session_id: str
+    plan: str
+    amount: int
+    currency: str
+
+
+class PortalSessionRequest(BaseModel):
+    return_url: str
+
+
+class PortalSessionResponse(BaseModel):
+    portal_url: str
+    session_id: str
 
 
 class BillingStatusResponse(BaseModel):
-    org_id: str
-    plan: str
+    has_subscription: bool
+    plan: Optional[Dict[str, Any]]
+    subscription: Optional[Dict[str, Any]]
+    usage: Dict[str, Any]
+    can_upgrade: bool
+    can_downgrade: bool
+
+
+class WebhookResponse(BaseModel):
     status: str
-    is_trial_active: bool
-    trial_days_remaining: Optional[int]
-    days_until_renewal: Optional[int]
-    current_period_start: Optional[str]
-    current_period_end: Optional[str]
-    coupon_code: Optional[str]
-    coupon_discount_percent: Optional[int]
-    coupon_discount_amount_cents: Optional[int]
-    last_payment_date: Optional[str]
-    last_payment_amount_cents: Optional[int]
-    next_payment_date: Optional[str]
-    next_payment_amount_cents: Optional[int]
-
-    class Config:
-        from_attributes = True
+    event_type: Optional[str] = None
+    error: Optional[str] = None
 
 
-class CouponResponse(BaseModel):
-    id: str
-    code: str
-    name: str
-    description: Optional[str]
-    discount_type: str
-    discount_value: int
-    valid_from: str
-    valid_until: Optional[str]
-    max_uses: Optional[int]
-    used_count: int
-    is_active: bool
-    created_at: str
+@router.post("/billing/checkout-session", response_model=CheckoutSessionResponse)
+async def create_checkout_session(
+    request: CheckoutSessionRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_mock)
+):
+    """Create Stripe checkout session for plan upgrade"""
+    try:
+        # Validate plan
+        if request.plan not in ['growth', 'pro']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid plan. Must be 'growth' or 'pro'"
+            )
+        
+        billing_service = BillingService(db)
+        
+        # Create checkout session
+        result = billing_service.create_checkout_session(
+            org_id=current_user["org_id"],
+            plan_type=request.plan,
+            success_url=request.success_url,
+            cancel_url=request.cancel_url,
+            customer_email=request.customer_email
+        )
+        
+        return CheckoutSessionResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create checkout session: {str(e)}"
+        )
 
-    class Config:
-        from_attributes = True
 
-
-class BillingHistoryResponse(BaseModel):
-    id: str
-    amount_cents: int
-    currency: str
-    description: str
-    plan: str
-    status: str
-    coupon_code: Optional[str]
-    discount_amount_cents: Optional[int]
-    created_at: str
-    processed_at: Optional[str]
-
-    class Config:
-        from_attributes = True
+@router.post("/billing/portal-link", response_model=PortalSessionResponse)
+async def create_portal_session(
+    request: PortalSessionRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_mock)
+):
+    """Create Stripe customer portal session"""
+    try:
+        billing_service = BillingService(db)
+        
+        # Create portal session
+        result = billing_service.create_portal_session(
+            org_id=current_user["org_id"],
+            return_url=request.return_url
+        )
+        
+        return PortalSessionResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create portal session: {str(e)}"
+        )
 
 
 @router.get("/billing/status", response_model=BillingStatusResponse)
 async def get_billing_status(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_mock)
 ):
-    """Get current billing status for the organization."""
-    billing = db.query(OrganizationBilling).filter(
-        OrganizationBilling.org_id == current_user["org_id"]
-    ).first()
-    
-    if not billing:
-        # Create default billing record
-        billing = OrganizationBilling(
-            id=secrets.token_urlsafe(16),
-            org_id=current_user["org_id"],
-            plan=PlanTier.STARTER,
-            status=BillingStatus.ACTIVE
+    """Get organization's billing status and usage"""
+    try:
+        billing_service = BillingService(db)
+        
+        # Get subscription and plan
+        subscription = billing_service.get_organization_subscription(current_user["org_id"])
+        plan = billing_service.get_organization_plan(current_user["org_id"])
+        
+        # Get usage data
+        usage = billing_service.get_organization_usage(current_user["org_id"])
+        
+        # Determine upgrade/downgrade options
+        can_upgrade = not subscription or (plan and plan.name == 'growth')
+        can_downgrade = subscription and plan and plan.name == 'pro'
+        
+        # Format response
+        plan_data = None
+        if plan:
+            plan_data = {
+                "id": plan.id,
+                "name": plan.name,
+                "display_name": plan.display_name,
+                "description": plan.description,
+                "price": plan.price,
+                "currency": plan.currency,
+                "billing_interval": plan.billing_interval,
+                "features": plan.features,
+                "limits": {
+                    "ai_requests": plan.ai_request_limit,
+                    "ai_tokens": plan.ai_token_limit,
+                    "content_posts": plan.content_post_limit
+                }
+            }
+        
+        subscription_data = None
+        if subscription:
+            subscription_data = {
+                "id": subscription.id,
+                "status": subscription.status.value,
+                "current_period_start": subscription.current_period_start.isoformat(),
+                "current_period_end": subscription.current_period_end.isoformat(),
+                "canceled_at": subscription.canceled_at.isoformat() if subscription.canceled_at else None
+            }
+        
+        return BillingStatusResponse(
+            has_subscription=subscription is not None,
+            plan=plan_data,
+            subscription=subscription_data,
+            usage=usage,
+            can_upgrade=can_upgrade,
+            can_downgrade=can_downgrade
         )
-        db.add(billing)
-        db.commit()
-        db.refresh(billing)
-    
-    return BillingStatusResponse(
-        org_id=billing.org_id,
-        plan=billing.plan.value,
-        status=billing.status.value,
-        is_trial_active=billing.is_trial_active(),
-        trial_days_remaining=billing.days_until_trial_end(),
-        days_until_renewal=billing.days_until_renewal(),
-        current_period_start=billing.current_period_start.isoformat() if billing.current_period_start else None,
-        current_period_end=billing.current_period_end.isoformat() if billing.current_period_end else None,
-        coupon_code=billing.coupon_code,
-        coupon_discount_percent=billing.coupon_discount_percent,
-        coupon_discount_amount_cents=billing.coupon_discount_amount_cents,
-        last_payment_date=billing.last_payment_date.isoformat() if billing.last_payment_date else None,
-        last_payment_amount_cents=billing.last_payment_amount_cents,
-        next_payment_date=billing.next_payment_date.isoformat() if billing.next_payment_date else None,
-        next_payment_amount_cents=billing.next_payment_amount_cents
-    )
-
-
-@router.post("/billing/trial/start")
-async def start_trial(
-    trial_data: TrialStartRequest,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Start a trial period for the organization."""
-    billing = db.query(OrganizationBilling).filter(
-        OrganizationBilling.org_id == current_user["org_id"]
-    ).first()
-    
-    if not billing:
-        billing = OrganizationBilling(
-            id=secrets.token_urlsafe(16),
-            org_id=current_user["org_id"],
-            plan=PlanTier.STARTER,
-            status=BillingStatus.ACTIVE
-        )
-        db.add(billing)
-    
-    if billing.trial_used:
+        
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Trial period has already been used for this organization"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get billing status: {str(e)}"
         )
-    
-    billing.start_trial(trial_data.days)
-    db.commit()
-    
-    return {
-        "message": f"Trial started for {trial_data.days} days",
-        "trial_end": billing.trial_end.isoformat(),
-        "days_remaining": billing.days_until_trial_end()
-    }
 
 
-@router.get("/billing/coupons", response_model=List[CouponResponse])
-async def list_available_coupons(
-    plan: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+@router.get("/billing/plans")
+async def get_available_plans(
+    db: Session = Depends(get_db)
 ):
-    """List available coupons for the organization."""
-    query = db.query(Coupon).filter(Coupon.is_active == True)
-    
-    if plan:
+    """Get available billing plans"""
+    try:
+        plans = db.query(Plan).filter(Plan.is_active == True).all()
+        
+        return {
+            "plans": [
+                {
+                    "id": plan.id,
+                    "name": plan.name,
+                    "display_name": plan.display_name,
+                    "description": plan.description,
+                    "price": plan.price,
+                    "currency": plan.currency,
+                    "billing_interval": plan.billing_interval,
+                    "features": plan.features,
+                    "limits": {
+                        "ai_requests": plan.ai_request_limit,
+                        "ai_tokens": plan.ai_token_limit,
+                        "content_posts": plan.content_post_limit
+                    },
+                    "stripe_price_id": plan.stripe_price_id
+                }
+                for plan in plans
+            ]
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get plans: {str(e)}"
+        )
+
+
+@router.post("/billing/webhook")
+async def handle_stripe_webhook(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Handle Stripe webhook events"""
+    try:
+        # Get the raw body and signature
+        payload = await request.body()
+        sig_header = request.headers.get('stripe-signature')
+        
+        if not sig_header:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing stripe-signature header"
+            )
+        
+        # Verify webhook signature
+        from app.core.config import get_settings
+        settings = get_settings()
+        
         try:
-            plan_enum = PlanTier(plan)
-            # Filter by applicable plans
-            query = query.filter(
-                Coupon.applicable_plans.is_(None) | 
-                Coupon.applicable_plans.contains(f'"{plan}"')
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, settings.stripe_webhook_secret
             )
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid plan. Must be one of: {[p.value for p in PlanTier]}"
+                detail="Invalid payload"
             )
-    
-    coupons = query.filter(Coupon.valid_from <= datetime.utcnow()).all()
-    
-    # Filter by validity
-    valid_coupons = [c for c in coupons if c.is_valid()]
-    
-    return [
-        CouponResponse(
-            id=coupon.id,
-            code=coupon.code,
-            name=coupon.name,
-            description=coupon.description,
-            discount_type=coupon.discount_type,
-            discount_value=coupon.discount_value,
-            valid_from=coupon.valid_from.isoformat(),
-            valid_until=coupon.valid_until.isoformat() if coupon.valid_until else None,
-            max_uses=coupon.max_uses,
-            used_count=coupon.used_count,
-            is_active=coupon.is_active,
-            created_at=coupon.created_at.isoformat()
+        except stripe.error.SignatureVerificationError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid signature"
+            )
+        
+        # Process the event
+        billing_service = BillingService(db)
+        result = billing_service.handle_webhook_event(event)
+        
+        return WebhookResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process webhook: {str(e)}"
         )
-        for coupon in valid_coupons
-    ]
 
 
-@router.post("/billing/coupons/apply")
-async def apply_coupon(
-    coupon_data: CouponApplyRequest,
+@router.get("/billing/usage")
+async def get_usage_details(
+    month: Optional[str] = Query(None, description="Month in YYYY-MM format"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_mock)
 ):
-    """Apply a coupon to the organization's billing."""
-    # Get coupon
-    coupon = db.query(Coupon).filter(
-        Coupon.code == coupon_data.code,
-        Coupon.is_active == True
-    ).first()
-    
-    if not coupon:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Coupon not found"
-        )
-    
-    if not coupon.is_valid():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Coupon is not valid or has expired"
-        )
-    
-    # Get billing record
-    billing = db.query(OrganizationBilling).filter(
-        OrganizationBilling.org_id == current_user["org_id"]
-    ).first()
-    
-    if not billing:
-        billing = OrganizationBilling(
-            id=secrets.token_urlsafe(16),
-            org_id=current_user["org_id"],
-            plan=PlanTier.STARTER,
-            status=BillingStatus.ACTIVE
-        )
-        db.add(billing)
-    
-    # Check if coupon can be used
-    if not coupon.can_be_used(billing.plan, 0):  # We'll calculate amount later
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Coupon cannot be used with your current plan"
-        )
-    
-    # Apply coupon
-    billing.apply_coupon(
-        code=coupon.code,
-        discount_percent=coupon.discount_value if coupon.discount_type == "percent" else None,
-        discount_amount_cents=coupon.discount_value if coupon.discount_type == "amount" else None,
-        expires_at=coupon.valid_until
-    )
-    
-    db.commit()
-    
-    return {
-        "message": "Coupon applied successfully",
-        "coupon_code": coupon.code,
-        "discount_type": coupon.discount_type,
-        "discount_value": coupon.discount_value
-    }
-
-
-@router.delete("/billing/coupons/remove")
-async def remove_coupon(
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Remove the current coupon from the organization's billing."""
-    billing = db.query(OrganizationBilling).filter(
-        OrganizationBilling.org_id == current_user["org_id"]
-    ).first()
-    
-    if not billing or not billing.coupon_code:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No coupon applied"
-        )
-    
-    billing.remove_coupon()
-    db.commit()
-    
-    return {"message": "Coupon removed successfully"}
-
-
-@router.post("/billing/upgrade")
-async def upgrade_plan(
-    upgrade_data: PlanUpgradeRequest,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Upgrade the organization's plan."""
+    """Get detailed usage information"""
     try:
-        new_plan = PlanTier(upgrade_data.plan)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid plan. Must be one of: {[p.value for p in PlanTier]}"
-        )
-    
-    # Get billing record
-    billing = db.query(OrganizationBilling).filter(
-        OrganizationBilling.org_id == current_user["org_id"]
-    ).first()
-    
-    if not billing:
-        billing = OrganizationBilling(
-            id=secrets.token_urlsafe(16),
+        billing_service = BillingService(db)
+        
+        # Parse month if provided
+        month_date = None
+        if month:
+            try:
+                month_date = datetime.strptime(month, "%Y-%m")
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid month format. Use YYYY-MM"
+                )
+        
+        usage = billing_service.get_organization_usage(
             org_id=current_user["org_id"],
-            plan=PlanTier.STARTER,
-            status=BillingStatus.ACTIVE
+            month=month_date
         )
-        db.add(billing)
-    
-    # Check if upgrading
-    if billing.plan == new_plan:
+        
+        return usage
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get usage details: {str(e)}"
+        )
+
+
+@router.get("/billing/invoices")
+async def get_invoices(
+    limit: int = Query(10, ge=1, le=100, description="Number of invoices to return"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_mock)
+):
+    """Get organization's invoices from Stripe"""
+    try:
+        billing_service = BillingService(db)
+        
+        # Get organization
+        org = db.query(Organization).filter(Organization.id == current_user["org_id"]).first()
+        if not org or not org.stripe_customer_id:
+            return {"invoices": []}
+        
+        # Get invoices from Stripe
+        invoices = stripe.Invoice.list(
+            customer=org.stripe_customer_id,
+            limit=limit
+        )
+        
+        return {
+            "invoices": [
+                {
+                    "id": invoice.id,
+                    "number": invoice.number,
+                    "status": invoice.status,
+                    "amount_paid": invoice.amount_paid,
+                    "amount_due": invoice.amount_due,
+                    "currency": invoice.currency,
+                    "created": datetime.fromtimestamp(invoice.created).isoformat(),
+                    "period_start": datetime.fromtimestamp(invoice.period_start).isoformat(),
+                    "period_end": datetime.fromtimestamp(invoice.period_end).isoformat(),
+                    "invoice_pdf": invoice.invoice_pdf,
+                    "hosted_invoice_url": invoice.hosted_invoice_url
+                }
+                for invoice in invoices.data
+            ]
+        }
+        
+    except stripe.error.StripeError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Already on this plan"
+            detail=f"Stripe error: {str(e)}"
         )
-    
-    # Apply coupon if provided
-    if upgrade_data.coupon_code:
-        coupon = db.query(Coupon).filter(
-            Coupon.code == upgrade_data.coupon_code,
-            Coupon.is_active == True
-        ).first()
-        
-        if not coupon:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Coupon not found"
-            )
-        
-        if not coupon.is_valid():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Coupon is not valid or has expired"
-            )
-        
-        if not coupon.can_be_used(new_plan, 0):  # We'll calculate amount later
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Coupon cannot be used with this plan"
-            )
-        
-        billing.apply_coupon(
-            code=coupon.code,
-            discount_percent=coupon.discount_value if coupon.discount_type == "percent" else None,
-            discount_amount_cents=coupon.discount_value if coupon.discount_type == "amount" else None,
-            expires_at=coupon.valid_until
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get invoices: {str(e)}"
         )
-    
-    # Update plan
-    billing.plan = new_plan
-    billing.status = BillingStatus.ACTIVE
-    
-    # Set billing period
-    now = datetime.utcnow()
-    billing.current_period_start = now
-    billing.current_period_end = now + timedelta(days=30)  # Monthly billing
-    
-    db.commit()
-    
-    return {
-        "message": f"Plan upgraded to {new_plan.value}",
-        "new_plan": new_plan.value,
-        "billing_period_start": billing.current_period_start.isoformat(),
-        "billing_period_end": billing.current_period_end.isoformat()
-    }
 
 
-@router.get("/billing/history", response_model=List[BillingHistoryResponse])
-async def get_billing_history(
-    limit: int = 50,
-    offset: int = 0,
+@router.post("/billing/cancel-subscription")
+async def cancel_subscription(
+    immediately: bool = Query(False, description="Cancel immediately or at period end"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_mock)
 ):
-    """Get billing history for the organization."""
-    history = db.query(BillingHistory).filter(
-        BillingHistory.org_id == current_user["org_id"]
-    ).order_by(BillingHistory.created_at.desc()).offset(offset).limit(limit).all()
-    
-    return [
-        BillingHistoryResponse(
-            id=entry.id,
-            amount_cents=entry.amount_cents,
-            currency=entry.currency,
-            description=entry.description,
-            plan=entry.plan.value,
-            status=entry.status,
-            coupon_code=entry.coupon_code,
-            discount_amount_cents=entry.discount_amount_cents,
-            created_at=entry.created_at.isoformat(),
-            processed_at=entry.processed_at.isoformat() if entry.processed_at else None
+    """Cancel organization's subscription"""
+    try:
+        billing_service = BillingService(db)
+        
+        result = billing_service.cancel_subscription(
+            org_id=current_user["org_id"],
+            immediately=immediately
         )
-        for entry in history
-    ]
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to cancel subscription: {str(e)}"
+        )
 
 
-@router.get("/billing/plans")
-async def get_available_plans():
-    """Get available billing plans."""
-    return {
-        "plans": [
-            {
-                "tier": "starter",
-                "name": "Starter",
-                "price_cents": 0,
-                "billing_interval": "month",
-                "features": [
-                    "50 posts per month",
-                    "3 social channels",
-                    "2 team members",
-                    "5 campaigns",
-                    "100 content items",
-                    "200 AI generations"
-                ]
-            },
-            {
-                "tier": "growth",
-                "name": "Growth",
-                "price_cents": 2900,  # $29
-                "billing_interval": "month",
-                "features": [
-                    "200 posts per month",
-                    "10 social channels",
-                    "5 team members",
-                    "20 campaigns",
-                    "500 content items",
-                    "1000 AI generations"
-                ]
-            },
-            {
-                "tier": "pro",
-                "name": "Pro",
-                "price_cents": 9900,  # $99
-                "billing_interval": "month",
-                "features": [
-                    "1000 posts per month",
-                    "50 social channels",
-                    "25 team members",
-                    "100 campaigns",
-                    "2500 content items",
-                    "5000 AI generations"
-                ]
-            }
-        ]
-    }
-
-
-@router.get("/billing/trial/status")
-async def get_trial_status(
+@router.post("/billing/upgrade-subscription")
+async def upgrade_subscription(
+    new_plan: str = Query(..., description="New plan type (growth, pro)"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_mock)
 ):
-    """Get trial status for the organization."""
-    billing = db.query(OrganizationBilling).filter(
-        OrganizationBilling.org_id == current_user["org_id"]
-    ).first()
-    
-    if not billing:
+    """Upgrade organization's subscription"""
+    try:
+        billing_service = BillingService(db)
+        
+        result = billing_service.upgrade_subscription(
+            org_id=current_user["org_id"],
+            new_plan_type=new_plan
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upgrade subscription: {str(e)}"
+        )
+
+
+@router.post("/billing/update-usage")
+async def update_usage(
+    usage_type: str = Query(..., description="Type of usage (ai_requests, content_posts, etc.)"),
+    amount: int = Query(1, ge=1, description="Amount to add to usage"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_mock)
+):
+    """Update organization's usage (internal API)"""
+    try:
+        billing_service = BillingService(db)
+        
+        success = billing_service.update_usage(
+            org_id=current_user["org_id"],
+            usage_type=usage_type,
+            amount=amount
+        )
+        
         return {
-            "has_trial": False,
-            "trial_used": False,
-            "can_start_trial": True
+            "success": success,
+            "usage_type": usage_type,
+            "amount": amount
         }
-    
-    return {
-        "has_trial": billing.trial_end is not None,
-        "trial_used": billing.trial_used,
-        "trial_active": billing.is_trial_active(),
-        "trial_days_remaining": billing.days_until_trial_end(),
-        "can_start_trial": not billing.trial_used
-    }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update usage: {str(e)}"
+        )
+
+
+@router.get("/billing/analytics")
+async def get_billing_analytics(
+    months: int = Query(6, ge=1, le=24, description="Number of months to analyze"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_mock)
+):
+    """Get billing analytics for the organization"""
+    try:
+        billing_service = BillingService(db)
+        
+        # Get usage data for the last N months
+        analytics_data = {
+            "months": [],
+            "total_usage": {
+                "ai_requests": 0,
+                "content_posts": 0,
+                "overage_charges": 0
+            },
+            "trends": {
+                "ai_requests": [],
+                "content_posts": [],
+                "overage_charges": []
+            }
+        }
+        
+        for i in range(months):
+            month_date = datetime.utcnow().replace(day=1) - timedelta(days=30 * i)
+            usage = billing_service.get_organization_usage(
+                org_id=current_user["org_id"],
+                month=month_date
+            )
+            
+            analytics_data["months"].append(usage["month"])
+            analytics_data["total_usage"]["ai_requests"] += usage["ai_requests"]
+            analytics_data["total_usage"]["content_posts"] += usage["content_posts"]
+            analytics_data["total_usage"]["overage_charges"] += usage["overage"]["amount"]
+            
+            analytics_data["trends"]["ai_requests"].append(usage["ai_requests"])
+            analytics_data["trends"]["content_posts"].append(usage["content_posts"])
+            analytics_data["trends"]["overage_charges"].append(usage["overage"]["amount"])
+        
+        return analytics_data
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get billing analytics: {str(e)}"
+        )
+
+
+@router.get("/billing/health")
+async def billing_health_check(
+    db: Session = Depends(get_db)
+):
+    """Health check for billing service"""
+    try:
+        # Test Stripe connection
+        stripe.Account.retrieve()
+        
+        # Test database connection
+        db.query(Plan).first()
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "stripe_connected": True,
+            "database_connected": True
+        }
+        
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e),
+            "stripe_connected": False,
+            "database_connected": False
+        }

@@ -271,41 +271,71 @@ class BillingPlanManager:
         self.plan_configs = {
             PlanTier.STARTER: {
                 "name": "Starter",
-                "description": "Perfect for small businesses getting started",
-                "price_cents": 0,
+                "description": "Perfect for individuals and small teams getting started",
+                "price_cents": 2900,  # $29
                 "features": [
                     "50 posts per month",
                     "3 social channels",
                     "2 team members",
                     "5 campaigns",
                     "100 content items",
-                    "200 AI generations"
+                    "200 AI generations",
+                    "Basic analytics",
+                    "Content scheduling",
+                    "Basic templates (10)",
+                    "Email support",
+                    "Mobile app access",
+                    "5GB storage"
                 ]
             },
             PlanTier.GROWTH: {
                 "name": "Growth",
-                "description": "For growing businesses that need more reach",
-                "price_cents": 2900,  # $29
+                "description": "Ideal for growing businesses and marketing teams",
+                "price_cents": 7900,  # $79
                 "features": [
                     "200 posts per month",
-                    "10 social channels",
-                    "5 team members",
+                    "6 social channels",
+                    "10 team members",
                     "20 campaigns",
                     "500 content items",
-                    "1000 AI generations"
+                    "1000 AI generations",
+                    "Advanced analytics",
+                    "Content scheduling",
+                    "Premium templates (50)",
+                    "Priority support",
+                    "Mobile app access",
+                    "25GB storage",
+                    "Custom branding",
+                    "Content calendar",
+                    "Bulk operations",
+                    "API access"
                 ]
             },
             PlanTier.PRO: {
                 "name": "Pro",
-                "description": "For established businesses with high volume needs",
-                "price_cents": 9900,  # $99
+                "description": "Advanced features for large teams and agencies",
+                "price_cents": 19900,  # $199
                 "features": [
-                    "1000 posts per month",
-                    "50 social channels",
-                    "25 team members",
-                    "100 campaigns",
-                    "2500 content items",
-                    "5000 AI generations"
+                    "Unlimited posts",
+                    "All social platforms",
+                    "50 team members",
+                    "Unlimited campaigns",
+                    "Unlimited content items",
+                    "Unlimited AI generations",
+                    "Advanced analytics",
+                    "Content scheduling",
+                    "Unlimited templates",
+                    "Priority support",
+                    "Mobile app access",
+                    "100GB storage",
+                    "Custom branding",
+                    "Content calendar",
+                    "Bulk operations",
+                    "API access",
+                    "White-label options",
+                    "Custom integrations",
+                    "Advanced automation",
+                    "Dedicated account manager"
                 ]
             }
         }

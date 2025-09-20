@@ -1,0 +1,18 @@
+{
+  "timestamp": "2025-09-20T20:26:39.990Z",
+  "summary": {
+    "total": 63,
+    "passed": 16,
+    "failed": 0,
+    "skipped": 47,
+    "duration": 101,
+    "successRate": 25.4
+  },
+  "errors": [],
+  "recommendations": [
+    "Run tests in CI/CD pipeline",
+    "Monitor performance in production",
+    "Regular accessibility audits",
+    "Update tests when adding new actions"
+  ]
+}

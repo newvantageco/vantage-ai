@@ -64,6 +64,10 @@ class StripeClient:
 def get_client() -> StripeClient:
     return StripeClient()
 
+def get_stripe() -> StripeClient:
+    """Alias for get_client() for consistency with imports"""
+    return StripeClient()
+
 def create_checkout_session(price_id: str, success_url: str, cancel_url: str) -> dict[str, Any]:
     return get_client().create_checkout_session(price_id, success_url, cancel_url)
 

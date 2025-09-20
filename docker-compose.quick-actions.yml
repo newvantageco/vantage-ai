@@ -1,0 +1,184 @@
+version: '3.8'
+
+# Docker Compose for Quick Actions Testing and Development
+# This configuration is optimized for testing Quick Actions functionality
+
+services:
+  # PostgreSQL Database with pgvector extension
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: vantage-db-qa
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vantage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vantage123}
+      POSTGRES_DB: ${POSTGRES_DB:-vantage_qa}
+    command: postgres -c shared_preload_libraries=vector -c max_connections=100 -c shared_buffers=128MB
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_qa_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vantage} -d ${POSTGRES_DB:-vantage_qa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - vantage-qa-network
+
+  # Redis Cache for Quick Actions state management
+  redis:
+    image: redis:7-alpine
+    container_name: vantage-redis-qa
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_qa_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - vantage-qa-network
+
+  # FastAPI Backend with Quick Actions API
+  api:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.api
+      target: production
+    container_name: vantage-api-qa
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+    environment:
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-vantage}:${POSTGRES_PASSWORD:-vantage123}@db:5432/${POSTGRES_DB:-vantage_qa}
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=testing
+      - DEBUG=true
+      - RATE_LIMIT_ENABLED=false
+      - SECURITY_HEADERS_ENABLED=true
+      - SECRET_KEY=${SECRET_KEY:-quick-actions-test-key}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY:-test-clerk-key}
+      - CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY:-test-clerk-pub-key}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-test-stripe-key}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-test-stripe-pub-key}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-test-webhook-secret}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-test-openai-key}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-test-anthropic-key}
+      - BRAVE_API_KEY=${BRAVE_API_KEY:-test-brave-key}
+      - QUICK_ACTIONS_ENABLED=true
+      - QUICK_ACTIONS_TESTING=true
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./app:/app/app:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - vantage-qa-network
+
+  # Next.js Frontend with Quick Actions Testing
+  web:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.web
+      target: development
+    container_name: vantage-web-qa
+    command: ["npm", "run", "dev"]
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-test-clerk-pub-key}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-test-stripe-pub-key}
+      - NEXT_PUBLIC_DEV_MODE=true
+      - NEXT_PUBLIC_QUICK_ACTIONS_ENABLED=true
+      - NEXT_PUBLIC_TOAST_ENABLED=true
+      - NEXT_PUBLIC_ANALYTICS_ENABLED=true
+      - NEXT_PUBLIC_TESTING_MODE=true
+      - NEXT_PUBLIC_DEBUG_QUICK_ACTIONS=true
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - ./uploads:/app/public/uploads
+      - ./web:/app:ro
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - vantage-qa-network
+
+  # Quick Actions Test Runner
+  test-runner:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.web
+      target: development
+    container_name: vantage-test-runner
+    command: ["npm", "test", "--", "--watchAll=false", "--verbose"]
+    environment:
+      - NODE_ENV=test
+      - NEXT_PUBLIC_API_URL=http://api:8000
+      - NEXT_PUBLIC_QUICK_ACTIONS_ENABLED=true
+      - NEXT_PUBLIC_TESTING_MODE=true
+    volumes:
+      - ./web:/app:ro
+      - /app/node_modules
+    depends_on:
+      - api
+      - web
+    networks:
+      - vantage-qa-network
+    profiles:
+      - testing
+
+  # Quick Actions Performance Monitor
+  monitor:
+    image: grafana/grafana:latest
+    container_name: vantage-monitor-qa
+    ports:
+      - "${MONITOR_PORT:-3001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_qa_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - vantage-qa-network
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_qa_data:
+    driver: local
+  redis_qa_data:
+    driver: local
+  grafana_qa_data:
+    driver: local
+
+networks:
+  vantage-qa-network:
+    driver: bridge

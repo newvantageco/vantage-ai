@@ -10,7 +10,7 @@ class MockProvider:
     """Provides mock responses for E2E testing when E2E_MOCKS=true"""
     
     def __init__(self) -> None:
-        self.enabled = os.getenv("E2E_MOCKS", "false").lower() == "true"
+        self.enabled = False  # Disabled for production
     
     def is_enabled(self) -> bool:
         """Check if mock mode is enabled"""

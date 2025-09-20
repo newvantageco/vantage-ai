@@ -1,227 +1,115 @@
-name: Security Scan with OWASP ZAP
+name: Security Scan
 
 on:
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly on Monday at 2 AM
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
-  schedule:
-    - cron: '0 2 * * 1'  # Run weekly on Monday at 2 AM
 
 jobs:
-  zap-baseline:
+  security-scan:
     runs-on: ubuntu-latest
-    name: OWASP ZAP Baseline Scan
     
     steps:
-    - name: Checkout
+    - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: |
-        cd web
-        npm ci
-        
-    - name: Build web application
-      run: |
-        cd web
-        npm run build
-        
-    - name: Start application
-      run: |
-        # Start the application in background
-        cd web
-        npm start &
-        sleep 30  # Wait for app to start
-        
-    - name: OWASP ZAP Baseline Scan
-      uses: zaproxy/action-baseline@v0.7.0
-      with:
-        target: 'http://localhost:3000'
-        rules_file_name: '.zap/rules.tsv'
-        cmd_options: '-a'
-        
-    - name: Upload ZAP results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: zap-results
-        path: zap-results/
-        
-    - name: Upload ZAP HTML report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: zap-html-report
-        path: zap-results/zap-report.html
-        
-    - name: Upload ZAP JSON report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: zap-json-report
-        path: zap-results/zap-report.json
 
-  zap-full-scan:
-    runs-on: ubuntu-latest
-    name: OWASP ZAP Full Scan
-    if: github.event_name == 'schedule' || github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: |
-        cd web
-        npm ci
-        
-    - name: Build web application
-      run: |
-        cd web
-        npm run build
-        
-    - name: Start application
-      run: |
-        # Start the application in background
-        cd web
-        npm start &
-        sleep 30  # Wait for app to start
-        
-    - name: OWASP ZAP Full Scan
-      uses: zaproxy/action-full-scan@v0.4.0
-      with:
-        target: 'http://localhost:3000'
-        rules_file_name: '.zap/rules.tsv'
-        cmd_options: '-a'
-        
-    - name: Upload ZAP results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: zap-full-results
-        path: zap-results/
-        
-    - name: Upload ZAP HTML report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: zap-full-html-report
-        path: zap-results/zap-report.html
-        
-    - name: Upload ZAP JSON report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: zap-full-json-report
-        path: zap-results/zap-report.json
-
-  zap-api-scan:
-    runs-on: ubuntu-latest
-    name: OWASP ZAP API Scan
-    if: github.event_name == 'schedule' || github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      
-    - name: Setup Python
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        
-    - name: Start API server
-      run: |
-        # Start the API server in background
-        python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        sleep 30  # Wait for API to start
-        
-    - name: OWASP ZAP API Scan
-      uses: zaproxy/action-api-scan@v0.3.0
-      with:
-        target: 'http://localhost:8000'
-        rules_file_name: '.zap/rules.tsv'
-        cmd_options: '-a'
-        
-    - name: Upload ZAP results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: zap-api-results
-        path: zap-results/
-        
-    - name: Upload ZAP HTML report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: zap-api-html-report
-        path: zap-results/zap-report.html
-        
-    - name: Upload ZAP JSON report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: zap-api-json-report
-        path: zap-results/zap-report.json
 
-  security-report:
-    runs-on: ubuntu-latest
-    name: Security Report
-    needs: [zap-baseline, zap-full-scan, zap-api-scan]
-    if: always()
-    
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      
-    - name: Download all ZAP results
-      uses: actions/download-artifact@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
-        path: zap-results/
-        
-    - name: Generate security report
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install Python dependencies
       run: |
-        mkdir -p security-reports
-        echo "# Security Scan Report" > security-reports/README.md
-        echo "Generated on: $(date)" >> security-reports/README.md
-        echo "" >> security-reports/README.md
-        echo "## Scan Results" >> security-reports/README.md
-        echo "" >> security-reports/README.md
-        
-        # Check if any scans found issues
-        if [ -f "zap-results/zap-baseline-results/zap-report.json" ]; then
-          echo "### Baseline Scan" >> security-reports/README.md
-          echo "- [Baseline Report](zap-baseline-results/zap-report.html)" >> security-reports/README.md
-        fi
-        
-        if [ -f "zap-results/zap-full-results/zap-report.json" ]; then
-          echo "### Full Scan" >> security-reports/README.md
-          echo "- [Full Report](zap-full-results/zap-report.html)" >> security-reports/README.md
-        fi
-        
-        if [ -f "zap-results/zap-api-results/zap-report.json" ]; then
-          echo "### API Scan" >> security-reports/README.md
-          echo "- [API Report](zap-api-results/zap-report.html)" >> security-reports/README.md
-        fi
-        
-    - name: Upload security report
-      uses: actions/upload-artifact@v4
+        python -m pip install --upgrade pip
+        pip install bandit safety semgrep
+
+    - name: Install Node.js dependencies
+      run: |
+        cd web
+        npm ci
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r app/ -f json -o bandit-report.json
+
+    - name: Run Safety check
+      run: |
+        safety check --json --output safety-report.json
+
+    - name: Run Semgrep scan
+      run: |
+        semgrep --config=auto --json --output=semgrep-report.json app/
+
+    - name: Run npm audit
+      run: |
+        cd web
+        npm audit --audit-level=moderate --json > ../npm-audit-report.json
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
       with:
-        name: security-report
-        path: security-reports/
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+          semgrep-report.json
+          npm-audit-report.json
+
+    - name: Comment PR with security findings
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let comment = '## 🔒 Security Scan Results\n\n';
+          
+          // Read and process security reports
+          try {
+            const banditReport = JSON.parse(fs.readFileSync('bandit-report.json', 'utf8'));
+            const highIssues = banditReport.results.filter(r => r.issue_severity === 'HIGH');
+            const mediumIssues = banditReport.results.filter(r => r.issue_severity === 'MEDIUM');
+            
+            if (highIssues.length > 0 || mediumIssues.length > 0) {
+              comment += '### ⚠️ Security Issues Found\n\n';
+              
+              if (highIssues.length > 0) {
+                comment += `**High Severity Issues: ${highIssues.length}**\n`;
+                highIssues.forEach(issue => {
+                  comment += `- ${issue.issue_text} (${issue.filename}:${issue.line_number})\n`;
+                });
+                comment += '\n';
+              }
+              
+              if (mediumIssues.length > 0) {
+                comment += `**Medium Severity Issues: ${mediumIssues.length}**\n`;
+                mediumIssues.forEach(issue => {
+                  comment += `- ${issue.issue_text} (${issue.filename}:${issue.line_number})\n`;
+                });
+                comment += '\n';
+              }
+            } else {
+              comment += '✅ No security issues found!\n\n';
+            }
+          } catch (error) {
+            comment += '❌ Error processing security reports\n\n';
+          }
+          
+          comment += '---\n*Security scan completed*';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

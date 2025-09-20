@@ -26,9 +26,11 @@ class LinkedInPublisher(Publisher):
     async def publish(
         self,
         *,
+        org_id: str,
         caption: str,
         media_paths: Sequence[str],
         first_comment: Optional[str] = None,
+        account_ref: Optional[str] = None,
         idempotency_key: Optional[str] = None,
     ) -> PostResult:
         logger.info(
@@ -46,9 +48,8 @@ class LinkedInPublisher(Publisher):
             return PostResult(id="li_dry_run", url="https://linkedin.com/feed/update/dry_run")
 
         try:
-            # Get valid access token (this would come from your token storage)
-            # For now, we'll assume it's passed in the context or stored somewhere
-            access_token = await self._get_access_token()
+            # Get valid access token from channel service
+            access_token = await self._get_access_token(org_id, account_ref)
             
             # Sanitize caption
             sanitized_caption = sanitize_caption(caption)
@@ -86,11 +87,25 @@ class LinkedInPublisher(Publisher):
             logger.error(f"[LinkedIn] Failed to publish: {e}")
             raise
 
-    async def _get_access_token(self) -> str:
+    async def _get_access_token(self, org_id: str, account_ref: Optional[str] = None) -> str:
         """Get valid access token from storage."""
-        # This would typically fetch from your database
-        # For now, we'll raise an error indicating token is needed
-        raise ValueError("LinkedIn access token not found. Please implement token storage.")
+        from app.services.channel_service import ChannelService
+        from app.db.session import get_db
+        
+        # Get database session
+        db = next(get_db())
+        try:
+            channel_service = ChannelService(db)
+            
+            # Get credentials for LinkedIn
+            credentials = await channel_service.get_channel_credentials(org_id, "linkedin", account_ref)
+            
+            if not credentials or not credentials.get("access_token"):
+                raise ValueError("LinkedIn access token not found. Please connect your LinkedIn account first.")
+            
+            return credentials["access_token"]
+        finally:
+            db.close()
 
     async def _upload_media(self, access_token: str, media_paths: Sequence[str]) -> list[str]:
         """Upload media files to LinkedIn and return asset URNs."""

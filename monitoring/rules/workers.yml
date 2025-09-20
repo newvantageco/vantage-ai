@@ -1,0 +1,29 @@
+groups:
+- name: vantage-workers
+  rules:
+  - alert: WorkerDown
+    expr: up{job="vantage-worker"} == 0
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Celery worker is down"
+      description: "Worker health check has been failing for more than 2 minutes"
+
+  - alert: WorkerHighQueueLength
+    expr: celery_queue_length > 1000
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High worker queue length"
+      description: "Worker queue has more than 1000 pending tasks"
+
+  - alert: WorkerHighFailureRate
+    expr: rate(celery_task_failures_total[5m]) / rate(celery_task_total[5m]) > 0.1
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High worker failure rate"
+      description: "Worker failure rate is above 10%"

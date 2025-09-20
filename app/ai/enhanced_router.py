@@ -5,8 +5,20 @@ import hashlib
 import time
 from typing import Optional, Any, List, Dict, Tuple
 from dataclasses import dataclass
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
+from app.observability.tracer import tracer
+
+# Import OpenTelemetry status classes only when available
+try:
+    from opentelemetry.trace import Status, StatusCode
+except ImportError:
+    # Define noop classes when OpenTelemetry is not available
+    class Status:
+        def __init__(self, code, description=""):
+            self.code = code
+            self.description = description
+    
+    class StatusCode:
+        ERROR = "ERROR"
 
 from app.cache.redis import cache
 from app.ai.budget_guard import BudgetGuard
@@ -41,7 +53,7 @@ class EnhancedAIRouter:
         self.ai_router = AIRouter()
         self.settings = get_settings()
         self.budget_guard = BudgetGuard(db_session) if db_session else None
-        self.tracer = trace.get_tracer(__name__)
+        self.tracer = tracer
 
     def _estimate_tokens(self, text: str) -> int:
         """Rough token estimation (4 chars per token average)."""
@@ -180,7 +192,12 @@ class EnhancedAIRouter:
             })
             
             if result.duration_ms > 10000:  # > 10 seconds
-                span.set_status(Status(StatusCode.ERROR, "Slow generation"))
+                # Note: set_status is not available in noop tracer, but that's OK
+                try:
+                    span.set_status(Status(StatusCode.ERROR, "Slow generation"))
+                except AttributeError:
+                    # Noop tracer doesn't have set_status method
+                    pass
             
             return result
 

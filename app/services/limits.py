@@ -23,6 +23,15 @@ class LimitType(str, Enum):
     CAMPAIGNS = "campaigns"
     CONTENT_ITEMS = "content_items"
     AI_GENERATIONS = "ai_generations"
+    STORAGE_GB = "storage_gb"
+    TEMPLATES = "templates"
+    API_CALLS_PER_MONTH = "api_calls_per_month"
+    AUTOMATION_RULES = "automation_rules"
+    INTEGRATIONS = "integrations"
+    CUSTOM_BRANDING = "custom_branding"
+    WHITE_LABEL = "white_label"
+    ADVANCED_ANALYTICS = "advanced_analytics"
+    BULK_OPERATIONS = "bulk_operations"
 
 
 class LimitCheckResult:
@@ -59,22 +68,49 @@ class LimitsService:
             LimitType.CAMPAIGNS: 5,
             LimitType.CONTENT_ITEMS: 100,
             LimitType.AI_GENERATIONS: 200,
+            LimitType.STORAGE_GB: 5,
+            LimitType.TEMPLATES: 10,
+            LimitType.API_CALLS_PER_MONTH: 1000,
+            LimitType.AUTOMATION_RULES: 3,
+            LimitType.INTEGRATIONS: 3,
+            LimitType.CUSTOM_BRANDING: 0,  # Not available
+            LimitType.WHITE_LABEL: 0,  # Not available
+            LimitType.ADVANCED_ANALYTICS: 0,  # Not available
+            LimitType.BULK_OPERATIONS: 0,  # Not available
         },
         PlanTier.GROWTH: {
             LimitType.POSTS_PER_MONTH: 200,
-            LimitType.CHANNELS: 10,
-            LimitType.USERS: 5,
+            LimitType.CHANNELS: 6,
+            LimitType.USERS: 10,
             LimitType.CAMPAIGNS: 20,
             LimitType.CONTENT_ITEMS: 500,
             LimitType.AI_GENERATIONS: 1000,
+            LimitType.STORAGE_GB: 25,
+            LimitType.TEMPLATES: 50,
+            LimitType.API_CALLS_PER_MONTH: 10000,
+            LimitType.AUTOMATION_RULES: 10,
+            LimitType.INTEGRATIONS: 6,
+            LimitType.CUSTOM_BRANDING: 1,  # Available
+            LimitType.WHITE_LABEL: 0,  # Not available
+            LimitType.ADVANCED_ANALYTICS: 1,  # Available
+            LimitType.BULK_OPERATIONS: 1,  # Available
         },
         PlanTier.PRO: {
-            LimitType.POSTS_PER_MONTH: 1000,
-            LimitType.CHANNELS: 50,
-            LimitType.USERS: 25,
-            LimitType.CAMPAIGNS: 100,
-            LimitType.CONTENT_ITEMS: 2500,
-            LimitType.AI_GENERATIONS: 5000,
+            LimitType.POSTS_PER_MONTH: -1,  # Unlimited
+            LimitType.CHANNELS: -1,  # Unlimited
+            LimitType.USERS: 50,
+            LimitType.CAMPAIGNS: -1,  # Unlimited
+            LimitType.CONTENT_ITEMS: -1,  # Unlimited
+            LimitType.AI_GENERATIONS: -1,  # Unlimited
+            LimitType.STORAGE_GB: 100,
+            LimitType.TEMPLATES: -1,  # Unlimited
+            LimitType.API_CALLS_PER_MONTH: -1,  # Unlimited
+            LimitType.AUTOMATION_RULES: -1,  # Unlimited
+            LimitType.INTEGRATIONS: -1,  # Unlimited
+            LimitType.CUSTOM_BRANDING: 1,  # Available
+            LimitType.WHITE_LABEL: 1,  # Available
+            LimitType.ADVANCED_ANALYTICS: 1,  # Available
+            LimitType.BULK_OPERATIONS: 1,  # Available
         },
     }
     

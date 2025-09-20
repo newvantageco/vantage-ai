@@ -1,36 +1,62 @@
-FROM node:18-alpine
+# Multi-stage Dockerfile for VANTAGE AI Web Frontend with Quick Actions
+FROM node:18-alpine as base
 
+# Set working directory
 WORKDIR /app
 
-# Install curl for health checks
+# Install system dependencies for Quick Actions testing
 RUN apk add --no-cache curl
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files from web directory
+COPY web/package*.json ./
 
-# Install dependencies
-RUN npm install
+# Development stage
+FROM base as development
 
-# Copy web source code
-COPY . .
+# Install dependencies including testing tools
+RUN npm ci
+
+# Copy source code from web directory
+COPY web/ .
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
-
-# Change ownership
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 RUN chown -R nextjs:nodejs /app
 USER nextjs
-
-# Build the application
-RUN npm run build
 
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Health check for Quick Actions
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000 || exit 1
+    CMD curl -f http://localhost:3000/api/health || exit 1
 
-# Run the application
-CMD ["node", ".next/standalone/server.js"]
+# Default command
+CMD ["npm", "run", "dev"]
+
+# Production stage
+FROM base as production
+
+# Install dependencies with Quick Actions support
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy source code from web directory
+COPY web/ .
+
+# Build the application with Quick Actions optimization
+RUN npm run build
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# Expose port
+EXPOSE 3000
+
+# Health check for Quick Actions functionality
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/api/health || exit 1
+
+# Default command
+CMD ["npm", "start"]

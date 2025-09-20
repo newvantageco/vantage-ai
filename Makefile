@@ -1,145 +1,184 @@
-# Vantage AI - Development Makefile
-# Provides convenient commands for local development
+# VANTAGE AI - Development Makefile
+# Single-truth dev stack commands
 
-.PHONY: help dev dev-up dev-down dev-logs dev-clean seed-demo test lint format install clean
+.PHONY: help up down logs api web test clean build
 
 # Default target
 help:
-	@echo "Vantage AI - Development Commands"
-	@echo "================================="
+	@echo "VANTAGE AI Development Commands:"
 	@echo ""
-	@echo "Development:"
-	@echo "  dev-up      Start all services with Docker Compose"
-	@echo "  dev-down    Stop all services and clean up"
-	@echo "  dev-logs    Show logs for all services"
-	@echo "  dev-clean   Stop services, remove volumes, and clean up images"
-	@echo "  seed-demo   Create demo data (requires running services)"
+	@echo "  make up          - Start all services (db, redis, api, worker, web)"
+	@echo "  make down        - Stop all services"
+	@echo "  make logs        - Show logs for all services"
+	@echo "  make api         - Start only API service"
+	@echo "  make web         - Start only web service"
+	@echo "  make test        - Run all tests"
+	@echo "  make test-unit   - Run unit tests only"
+	@echo "  make test-coverage - Run tests with coverage report"
+	@echo "  make test-ai     - Run AI content tests"
+	@echo "  make test-cms    - Run CMS tests"
+	@echo "  make test-publishing - Run publishing tests"
+	@echo "  make test-analytics - Run analytics tests"
+	@echo "  make test-billing - Run billing tests"
+	@echo "  make test-collaboration - Run collaboration tests"
+	@echo "  make test-privacy - Run privacy tests"
+	@echo "  make test-whatsapp - Run WhatsApp tests"
+	@echo "  make test-local  - Run tests locally (without Docker)"
+	@echo "  make clean       - Clean up containers and volumes"
+	@echo "  make build       - Build all Docker images"
 	@echo ""
-	@echo "Code Quality:"
-	@echo "  lint        Run linting checks (Python + TypeScript)"
-	@echo "  format      Format code (Python + TypeScript)"
-	@echo "  test        Run test suites"
-	@echo ""
-	@echo "Setup:"
-	@echo "  install     Install dependencies for local development"
-	@echo "  setup       Initial setup (copy env, install deps)"
-	@echo ""
-	@echo "Maintenance:"
-	@echo "  clean       Clean up temporary files and cache"
-	@echo ""
 
-# Development commands
-dev-up:
-	@echo "🚀 Starting development environment..."
-	@./scripts/dev_up.sh
+# Start all services
+up:
+	@echo "🚀 Starting VANTAGE AI development stack..."
+	docker-compose -f docker-compose.simple.yml up -d
+	@echo "✅ Services started! Access:"
+	@echo "   🌐 Web: http://localhost:3000"
+	@echo "   🔧 API: http://localhost:8000"
+	@echo "   📊 API Docs: http://localhost:8000/docs"
+	@echo "   🗄️  Database: localhost:5432"
+	@echo "   🔴 Redis: localhost:6379"
 
-dev-down:
-	@echo "🛑 Stopping development environment..."
-	@./scripts/dev_down.sh
+# Stop all services
+down:
+	@echo "🛑 Stopping VANTAGE AI development stack..."
+	docker-compose -f docker-compose.simple.yml down
+	@echo "✅ Services stopped!"
 
-dev-logs:
-	@echo "📊 Showing logs for all services..."
-	@docker compose -f infra/docker-compose.dev.yml logs -f
+# Show logs for all services
+logs:
+	@echo "📋 Showing logs for all services..."
+	docker-compose -f docker-compose.simple.yml logs -f
 
-dev-clean:
-	@echo "🧹 Cleaning up development environment..."
-	@docker compose -f infra/docker-compose.dev.yml down -v --remove-orphans
-	@docker system prune -f
-	@docker volume prune -f
+# Start only API service
+api:
+	@echo "🔧 Starting API service..."
+	docker-compose -f docker-compose.simple.yml up -d db redis
+	@echo "⏳ Waiting for database to be ready..."
+	sleep 5
+	docker-compose -f docker-compose.simple.yml up api
+	@echo "✅ API service started at http://localhost:8000"
 
-seed-demo:
-	@echo "🌱 Seeding demo data..."
-	@./scripts/seed_demo.sh
+# Start only web service
+web:
+	@echo "🌐 Starting web service..."
+	docker-compose -f docker-compose.simple.yml up -d db redis api
+	@echo "⏳ Waiting for API to be ready..."
+	sleep 10
+	docker-compose -f docker-compose.simple.yml up web
+	@echo "✅ Web service started at http://localhost:3000"
 
-# Code quality commands
-lint:
-	@echo "🔍 Running linting checks..."
-	@echo "Python linting..."
-	@ruff check app/ workers/ tests/
-	@black --check app/ workers/ tests/
-	@echo "TypeScript linting..."
-	@cd web && pnpm lint
-	@cd web && pnpm typecheck
-
-format:
-	@echo "✨ Formatting code..."
-	@echo "Python formatting..."
-	@ruff check --fix app/ workers/ tests/
-	@black app/ workers/ tests/
-
+# Run all tests
 test:
-	@echo "🧪 Running tests..."
-	@echo "Python tests..."
-	@pytest tests/ -v
-	@echo "TypeScript tests..."
-	@cd web && pnpm test:e2e
+	@echo "🧪 Running all tests..."
+	@echo "📊 Backend tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -v
+	@echo "🌐 Frontend tests..."
+	docker-compose -f docker-compose.simple.yml exec web npm test
+	@echo "✅ All tests completed!"
 
-# Setup commands
-install:
-	@echo "📦 Installing dependencies..."
-	@echo "Python dependencies..."
-	@pip install -r requirements.txt
-	@echo "Node.js dependencies..."
-	@cd web && pnpm install
+# Test commands
+test-unit: ## Run unit tests only
+	@echo "🧪 Running unit tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -v --tb=short
 
-setup: install
-	@echo "⚙️  Setting up development environment..."
-	@if [ ! -f .env ]; then \
-		cp env.example .env; \
-		echo "📝 Created .env file from template. Please edit with your credentials."; \
-	fi
-	@echo "✅ Setup complete! Run 'make dev-up' to start development environment."
+test-coverage: ## Run tests with coverage report
+	@echo "🧪 Running tests with coverage..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ --cov=app --cov-report=html --cov-report=term
 
-# Docker commands
-docker-build:
-	@echo "🐳 Building Docker images..."
-	@docker compose -f infra/docker-compose.dev.yml build
+test-ai: ## Run AI content tests
+	@echo "🧪 Running AI content tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -k 'test_ai_content' -v
 
-docker-push:
-	@echo "📤 Pushing Docker images..."
-	@docker compose -f infra/docker-compose.dev.yml push
+test-cms: ## Run CMS tests
+	@echo "🧪 Running CMS tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -k 'test_cms' -v
 
-# Database commands
+test-publishing: ## Run publishing tests
+	@echo "🧪 Running publishing tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -k 'test_publishing' -v
+
+test-analytics: ## Run analytics tests
+	@echo "🧪 Running analytics tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -k 'test_analytics' -v
+
+test-billing: ## Run billing tests
+	@echo "🧪 Running billing tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -k 'test_billing' -v
+
+test-collaboration: ## Run collaboration tests
+	@echo "🧪 Running collaboration tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -k 'test_collaboration' -v
+
+test-privacy: ## Run privacy tests
+	@echo "🧪 Running privacy tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -k 'test_privacy' -v
+
+test-whatsapp: ## Run WhatsApp tests
+	@echo "🧪 Running WhatsApp tests..."
+	docker-compose -f docker-compose.simple.yml exec api pytest tests/ -k 'test_whatsapp' -v
+
+test-local: ## Run tests locally (without Docker)
+	@echo "🧪 Running tests locally..."
+	python run_tests.py
+
+# Clean up containers and volumes
+clean:
+	@echo "🧹 Cleaning up containers and volumes..."
+	docker-compose -f docker-compose.simple.yml down -v
+	docker system prune -f
+	@echo "✅ Cleanup completed!"
+
+# Build all Docker images
+build:
+	@echo "🔨 Building all Docker images..."
+	docker-compose -f docker-compose.simple.yml build
+	@echo "✅ All images built!"
+
+# Development helpers
+dev-setup:
+	@echo "🛠️  Setting up development environment..."
+	@echo "📝 Creating .env file if it doesn't exist..."
+	@if [ ! -f .env ]; then cp env.sample .env; echo "✅ Created .env from env.sample"; fi
+	@echo "📝 Creating web/.env.local if it doesn't exist..."
+	@if [ ! -f web/.env.local ]; then cp web/env.sample web/.env.local; echo "✅ Created web/.env.local from web/env.sample"; fi
+	@echo "✅ Development setup completed!"
+
+# Database operations
 db-migrate:
-	@echo "🗄️  Running database migrations..."
-	@alembic upgrade head
+	@echo "🔄 Running database migrations..."
+	docker-compose -f docker-compose.simple.yml exec api alembic upgrade head
+	@echo "✅ Database migrations completed!"
 
 db-reset:
 	@echo "🔄 Resetting database..."
-	@alembic downgrade base
-	@alembic upgrade head
+	docker-compose -f docker-compose.simple.yml down -v
+	docker-compose -f docker-compose.simple.yml up -d db
+	@echo "⏳ Waiting for database to be ready..."
+	sleep 10
+	docker-compose -f docker-compose.simple.yml exec api alembic upgrade head
+	@echo "✅ Database reset completed!"
 
-# Utility commands
+# Service status
 status:
-	@echo "📊 Development environment status:"
-	@docker compose -f infra/docker-compose.dev.yml ps
+	@echo "📊 Service Status:"
+	docker-compose -f docker-compose.simple.yml ps
 
-logs-api:
-	@echo "📊 API logs:"
-	@docker compose -f infra/docker-compose.dev.yml logs -f api
+# Health checks
+health:
+	@echo "🏥 Checking service health..."
+	@echo "🗄️  Database:"
+	@docker-compose -f docker-compose.simple.yml exec db pg_isready -U dev -d vantage || echo "❌ Database not ready"
+	@echo "🔴 Redis:"
+	@docker-compose -f docker-compose.simple.yml exec redis redis-cli ping || echo "❌ Redis not ready"
+	@echo "🔧 API:"
+	@curl -f http://localhost:8000/api/v1/health || echo "❌ API not ready"
+	@echo "🌐 Web:"
+	@curl -f http://localhost:3000 || echo "❌ Web not ready"
 
-logs-web:
-	@echo "📊 Web logs:"
-	@docker compose -f infra/docker-compose.dev.yml logs -f web
-
-logs-workers:
-	@echo "📊 Worker logs:"
-	@docker compose -f infra/docker-compose.dev.yml logs -f worker-scheduler worker-optimiser
-
-# Maintenance commands
-clean:
-	@echo "🧹 Cleaning up temporary files and cache..."
-	@./scripts/cleanup.sh
-
-# CI/CD simulation
-ci-lint:
-	@echo "🔍 Running CI linting checks..."
-	@ruff check app/ workers/ tests/ --output-format=github
-	@black --check app/ workers/ tests/
-	@cd web && pnpm lint
-	@cd web && pnpm typecheck
-
-ci-test:
-	@echo "🧪 Running CI test suite..."
-	@pytest tests/ -v --cov=app --cov-report=xml
-	@cd web && pnpm test:e2e
+# Quick start (setup + up)
+quickstart: dev-setup up
+	@echo "🎉 VANTAGE AI is ready!"
+	@echo "   🌐 Web: http://localhost:3000"
+	@echo "   🔧 API: http://localhost:8000"
+	@echo "   📊 API Docs: http://localhost:8000/docs"

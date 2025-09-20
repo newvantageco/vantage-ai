@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: vantage-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx-ssl.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+      - web
+    networks:
+      - vantage-network
+    restart: unless-stopped
+
+networks:
+  vantage-network:
+    external: true

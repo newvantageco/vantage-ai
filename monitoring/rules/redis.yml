@@ -1,0 +1,29 @@
+groups:
+- name: vantage-redis
+  rules:
+  - alert: RedisDown
+    expr: up{job="redis"} == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Redis is down"
+      description: "Redis health check has been failing for more than 1 minute"
+
+  - alert: RedisHighMemoryUsage
+    expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High Redis memory usage"
+      description: "Redis memory usage is above 80%"
+
+  - alert: RedisHighKeyCount
+    expr: redis_db_keys > 1000000
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High Redis key count"
+      description: "Redis has more than 1 million keys"

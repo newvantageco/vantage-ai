@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vantage-ai-config
+  namespace: vantage-ai
+data:
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  API_BASE: "/api/v1"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "vantage"
+  NEXT_PUBLIC_API_URL: "https://api.vantage-ai.com"
+  NEXT_PUBLIC_MOCK_MODE: "false"
+  NEXT_PUBLIC_DEV_MODE: "false"

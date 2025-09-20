@@ -1,0 +1,79 @@
+[
+  {
+    "test": "API Health Check",
+    "status": "PASS",
+    "details": "API is healthy - ok",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.612260"
+  },
+  {
+    "test": "AI Content Generation",
+    "status": "PASS",
+    "details": "AI successfully generated content",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.617452"
+  },
+  {
+    "test": "Publishing Endpoints",
+    "status": "PASS",
+    "details": "Publishing service status: operational",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.619194"
+  },
+  {
+    "test": "Analytics Endpoints",
+    "status": "PASS",
+    "details": "Analytics endpoints accessible",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.621101"
+  },
+  {
+    "test": "OAuth Integration",
+    "status": "PASS",
+    "details": "OAuth service status: operational",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.622570"
+  },
+  {
+    "test": "Billing Endpoints",
+    "status": "PASS",
+    "details": "Billing endpoints accessible",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.624035"
+  },
+  {
+    "test": "Media Upload",
+    "status": "PASS",
+    "details": "Media upload endpoint accessible",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.625450"
+  },
+  {
+    "test": "Scheduling Endpoints",
+    "status": "PASS",
+    "details": "Scheduling endpoints accessible",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.627427"
+  },
+  {
+    "test": "Security Headers",
+    "status": "PASS",
+    "details": "All security headers present",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.629620"
+  },
+  {
+    "test": "CORS Configuration",
+    "status": "PASS",
+    "details": "CORS properly configured",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.630516"
+  },
+  {
+    "test": "Rate Limiting",
+    "status": "WARN",
+    "details": "Rate limiting may not be active (no 429 responses)",
+    "data": null,
+    "timestamp": "2025-09-19T22:01:51.651489"
+  }
+]

@@ -14,6 +14,9 @@ class Organization(Base):
 
 	id: Mapped[str] = mapped_column(String(36), primary_key=True)
 	name: Mapped[str] = mapped_column(String(255), nullable=False)
+	slug: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+	stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+	is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 	created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
 
 	users: Mapped[list[UserAccount]] = relationship(back_populates="organization", cascade="all, delete-orphan")  # type: ignore[name-defined]

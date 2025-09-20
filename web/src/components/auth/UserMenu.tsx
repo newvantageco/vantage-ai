@@ -1,23 +1,23 @@
 "use client";
-import { useDevAuth } from "../DevAuthWrapper";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function UserMenu() {
-  const devAuth = useDevAuth();
+  const auth = useAuth();
 
   return (
     <div className="flex items-center gap-2">
-      {devAuth.isSignedIn ? (
+      {auth.isAuthenticated ? (
         <div className="flex items-center gap-2">
           <img 
-            src={devAuth.user?.imageUrl} 
-            alt={devAuth.user?.firstName}
+            src={'/default-avatar.png'} 
+            alt={auth.user?.name}
             className="w-8 h-8 rounded-full"
           />
           <span className="text-sm font-medium">
-            {devAuth.user?.firstName} {devAuth.user?.lastName}
+            {auth.user?.name}
           </span>
           <button
-            onClick={devAuth.signOut}
+            onClick={auth.logout}
             className="text-sm text-muted-foreground hover:text-foreground"
           >
             Sign Out

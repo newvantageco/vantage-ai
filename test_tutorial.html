@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VANTAGE AI Tutorial Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .floating {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .floating:hover {
+            background: #218838;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .step {
+            display: none;
+        }
+        .step.active {
+            display: block;
+        }
+        .progress {
+            display: flex;
+            gap: 5px;
+            margin: 20px 0;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #e0e0e0;
+            flex: 1;
+            border-radius: 2px;
+        }
+        .progress-bar.active {
+            background: #007bff;
+        }
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 VANTAGE AI Tutorial Test</h1>
+        <p>This is a simple test to verify the tutorial system works correctly.</p>
+        
+        <h2>Test Buttons</h2>
+        <button class="button" onclick="openTutorial()">📚 Open Tutorial</button>
+        <button class="button" onclick="openTutorial()">❓ Help & Tutorials</button>
+        
+        <h2>Instructions</h2>
+        <ol>
+            <li>Click any of the tutorial buttons above</li>
+            <li>The tutorial modal should open</li>
+            <li>Navigate through the steps using Next/Previous buttons</li>
+            <li>Complete the tutorial to test the full flow</li>
+        </ol>
+        
+        <h2>Expected Behavior</h2>
+        <ul>
+            <li>✅ Modal opens when button is clicked</li>
+            <li>✅ Progress bar shows current step</li>
+            <li>✅ Navigation buttons work correctly</li>
+            <li>✅ Tutorial closes when completed</li>
+        </ul>
+    </div>
+    
+    <!-- Floating Tutorial Button -->
+    <button class="floating" onclick="openTutorial()" title="Help & Tutorials">📚</button>
+    
+    <!-- Tutorial Modal -->
+    <div id="tutorialModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeTutorial()">&times;</span>
+            <h2 id="tutorialTitle">Welcome to VANTAGE AI! 🚀</h2>
+            <p id="tutorialSubtitle">Step 1 of 5</p>
+            
+            <div class="progress">
+                <div class="progress-bar active"></div>
+                <div class="progress-bar"></div>
+                <div class="progress-bar"></div>
+                <div class="progress-bar"></div>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div id="tutorialContent">
+                <div class="step active">
+                    <p>Welcome to VANTAGE AI! Your AI-powered social media management platform. Let's get you started with a quick tour of the key features.</p>
+                </div>
+                <div class="step">
+                    <p>Use the Composer to create engaging content with AI assistance. Just enter your topic and let AI generate platform-optimized posts.</p>
+                </div>
+                <div class="step">
+                    <p>Schedule your content at optimal times using the Calendar. AI analyzes your audience to suggest the best posting times.</p>
+                </div>
+                <div class="step">
+                    <p>Track your performance with detailed analytics. See which content resonates with your audience and optimize your strategy.</p>
+                </div>
+                <div class="step">
+                    <p>Set up automated workflows and rules to streamline your social media management. Save time with intelligent automation.</p>
+                </div>
+            </div>
+            
+            <div class="nav-buttons">
+                <button class="button" id="prevBtn" onclick="changeStep(-1)" disabled>Previous</button>
+                <button class="button" id="nextBtn" onclick="changeStep(1)">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const totalSteps = 5;
+        const steps = [
+            {
+                title: "Welcome to VANTAGE AI! 🚀",
+                content: "Welcome to VANTAGE AI! Your AI-powered social media management platform. Let's get you started with a quick tour of the key features."
+            },
+            {
+                title: "AI Content Creation ✍️",
+                content: "Use the Composer to create engaging content with AI assistance. Just enter your topic and let AI generate platform-optimized posts."
+            },
+            {
+                title: "Smart Scheduling 📅",
+                content: "Schedule your content at optimal times using the Calendar. AI analyzes your audience to suggest the best posting times."
+            },
+            {
+                title: "Analytics & Insights 📊",
+                content: "Track your performance with detailed analytics. See which content resonates with your audience and optimize your strategy."
+            },
+            {
+                title: "Automation & Rules ⚡",
+                content: "Set up automated workflows and rules to streamline your social media management. Save time with intelligent automation."
+            }
+        ];
+
+        function openTutorial() {
+            console.log('Tutorial opened!');
+            document.getElementById('tutorialModal').style.display = 'block';
+            currentStep = 0;
+            updateTutorial();
+        }
+
+        function closeTutorial() {
+            console.log('Tutorial closed!');
+            document.getElementById('tutorialModal').style.display = 'none';
+        }
+
+        function changeStep(direction) {
+            currentStep += direction;
+            updateTutorial();
+        }
+
+        function updateTutorial() {
+            const step = steps[currentStep];
+            document.getElementById('tutorialTitle').textContent = step.title;
+            document.getElementById('tutorialSubtitle').textContent = `Step ${currentStep + 1} of ${totalSteps}`;
+            
+            // Update progress bars
+            const progressBars = document.querySelectorAll('.progress-bar');
+            progressBars.forEach((bar, index) => {
+                bar.classList.toggle('active', index <= currentStep);
+            });
+            
+            // Update navigation buttons
+            document.getElementById('prevBtn').disabled = currentStep === 0;
+            document.getElementById('nextBtn').textContent = currentStep === totalSteps - 1 ? 'Complete' : 'Next';
+            
+            // Update step content
+            const stepDivs = document.querySelectorAll('.step');
+            stepDivs.forEach((div, index) => {
+                div.classList.toggle('active', index === currentStep);
+            });
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('tutorialModal');
+            if (event.target === modal) {
+                closeTutorial();
+            }
+        }
+
+        // Test the tutorial on page load
+        console.log('Tutorial test page loaded successfully!');
+        console.log('Click any tutorial button to test the functionality.');
+    </script>
+</body>
+</html>

@@ -1,39 +1,92 @@
+import os
 import logging
-from opentelemetry import trace, metrics
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
 
-from app.core.config import settings
+# Safe telemetry imports with fallback
+DISABLE_TELEMETRY = os.getenv("DISABLE_TELEMETRY") == "1"
+
+try:
+    if not DISABLE_TELEMETRY:
+        from opentelemetry import trace, metrics
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.prometheus import PrometheusMetricReader
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.sdk.metrics import MeterProvider
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+        from opentelemetry.instrumentation.requests import RequestsInstrumentor
+        from opentelemetry.instrumentation.redis import RedisInstrumentor
+        _TELEMETRY_OK = True
+    else:
+        _TELEMETRY_OK = False
+except Exception:
+    _TELEMETRY_OK = False
+
+from app.core.config import Settings
 
 logger = logging.getLogger(__name__)
 
 
-def setup_telemetry():
-    """Setup OpenTelemetry instrumentation."""
+def _safe_tracer():
+    """Get a safe tracer that works even when telemetry is disabled."""
+    if _TELEMETRY_OK:
+        return trace.get_tracer("vantage-ai")
+    
+    class _NoopTracer:
+        def start_as_current_span(self, *a, **k):
+            from contextlib import nullcontext
+            return nullcontext()
+    
+    return _NoopTracer()
+
+
+def init_telemetry():
+    """Initialize OpenTelemetry with proper configuration."""
+    if os.getenv("DISABLE_TELEMETRY") == "1":
+        logger.info("Telemetry disabled via DISABLE_TELEMETRY=1")
+        return
+
     try:
-        # Configure tracing
-        trace.set_tracer_provider(TracerProvider())
-        tracer = trace.get_tracer(__name__)
-        
-        # Configure OTLP exporter for traces
-        otlp_exporter = OTLPSpanExporter(
-            endpoint=settings.JAEGER_ENDPOINT or "http://jaeger:14250"
-        )
-        span_processor = BatchSpanProcessor(otlp_exporter)
-        trace.get_tracer_provider().add_span_processor(span_processor)
-        
-        # Configure metrics
-        metric_reader = PrometheusMetricReader()
-        meter_provider = MeterProvider(metric_readers=[metric_reader])
-        metrics.set_meter_provider(meter_provider)
-        
+        from opentelemetry import trace, metrics
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.prometheus import PrometheusMetricReader
+
+        service_name = os.getenv("OTEL_SERVICE_NAME", "vantage-api")
+        resource = Resource.create({"service.name": service_name})
+
+        # Tracer
+        tp = TracerProvider(resource=resource)
+        trace.set_tracer_provider(tp)
+
+        otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+        if otlp_endpoint:
+            tp.add_span_processor(
+                BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{otlp_endpoint}/v1/traces"))
+            )
+
+        # Metrics
+        if os.getenv("ENABLE_PROMETHEUS_METRICS") == "1":
+            reader = PrometheusMetricReader()
+            mp = metrics.MeterProvider(resource=resource, metric_readers=[reader])
+            metrics.set_meter_provider(mp)
+
+        logger.info(f"OpenTelemetry initialized for service: {service_name}")
+
+    except Exception as e:
+        logger.error(f"[otel] disabled or failed to init: {e}")
+
+
+def setup_telemetry():
+    """Setup OpenTelemetry instrumentation (legacy function for compatibility)."""
+    init_telemetry()
+    
+    if not _TELEMETRY_OK:
+        return
+    
+    try:
         # Instrument FastAPI
         FastAPIInstrumentor.instrument()
         
@@ -49,17 +102,46 @@ def setup_telemetry():
         logger.info("OpenTelemetry instrumentation setup complete")
         
     except Exception as e:
-        logger.error(f"Failed to setup OpenTelemetry: {e}")
+        logger.error(f"Failed to setup OpenTelemetry instrumentation: {e}")
 
 
 def get_tracer(name: str):
     """Get a tracer instance."""
-    return trace.get_tracer(name)
+    if _TELEMETRY_OK:
+        return trace.get_tracer(name)
+    return _safe_tracer()
 
 
 def get_meter(name: str):
     """Get a meter instance."""
-    return metrics.get_meter(name)
+    if _TELEMETRY_OK:
+        return metrics.get_meter(name)
+    
+    class _NoopMeter:
+        def create_counter(self, *a, **k):
+            return _NoopCounter()
+        def create_histogram(self, *a, **k):
+            return _NoopHistogram()
+        def create_up_down_counter(self, *a, **k):
+            return _NoopUpDownCounter()
+        def create_gauge(self, *a, **k):
+            return _NoopGauge()
+    
+    return _NoopMeter()
+
+
+class _NoopCounter:
+    def add(self, *a, **k): pass
+
+class _NoopHistogram:
+    def record(self, *a, **k): pass
+
+class _NoopUpDownCounter:
+    def add(self, *a, **k): pass
+    def set(self, *a, **k): pass
+
+class _NoopGauge:
+    def set(self, *a, **k): pass
 
 
 # Global tracer and meter instances

@@ -6,13 +6,15 @@ const nextConfig = {
     removeConsole: false,
   },
   experimental: {
-    // Remove all experimental features
+    serverActions: { bodySizeLimit: '2mb' }
   },
-  // Minimal configuration for debugging
+  // Production optimizations
   output: 'standalone',
   trailingSlash: false,
   // Skip static optimization
   skipTrailingSlashRedirect: true,
+  // Disable automatic redirects
+  redirects: async () => [],
   // Disable static optimization
   staticPageGenerationTimeout: 1000,
 };

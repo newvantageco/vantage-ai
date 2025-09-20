@@ -1,0 +1,108 @@
+repos:
+  # Python code formatting
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        args: [--line-length=88, --target-version=py311]
+
+  # Python linting
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.1.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix, --line-length=88]
+      - id: ruff-format
+
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-all]
+        args: [--ignore-missing-imports, --no-strict-optional]
+
+  # Security checks
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: [-r, app/, -f, json, -o, bandit-report.json]
+        exclude: ^tests/
+
+  # Import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [--profile=black, --line-length=88]
+
+  # General hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: debug-statements
+      - id: detect-private-key
+
+  # Frontend hooks
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.55.0
+    hooks:
+      - id: eslint
+        files: \.(js|jsx|ts|tsx)$
+        additional_dependencies:
+          - eslint@8.55.0
+          - "@typescript-eslint/eslint-plugin@6.13.1"
+          - "@typescript-eslint/parser@6.13.1"
+          - "eslint-config-next@14.2.12"
+
+  # Dockerfile linting
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        args: [--ignore, DL3008, --ignore, DL3009]
+
+  # Commit message linting
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.13.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  # Database migration checks
+  - repo: local
+    hooks:
+      - id: check-migration-names
+        name: Check migration names
+        entry: python scripts/check_migration_names.py
+        language: system
+        files: ^alembic/versions/.*\.py$
+
+  # Environment file checks
+  - repo: local
+    hooks:
+      - id: check-env-files
+        name: Check environment files
+        entry: python scripts/check_env_files.py
+        language: system
+        files: ^\.env.*$
+
+  # Documentation checks
+  - repo: local
+    hooks:
+      - id: check-docs
+        name: Check documentation
+        entry: python scripts/check_docs.py
+        language: system
+        files: ^(README\.md|docs/.*\.md)$

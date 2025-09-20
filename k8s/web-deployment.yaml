@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vantage-web
+  namespace: vantage-ai
+  labels:
+    app: vantage-web
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vantage-web
+  template:
+    metadata:
+      labels:
+        app: vantage-web
+        version: v1
+    spec:
+      containers:
+      - name: web
+        image: ghcr.io/your-username/vantage-ai-web:latest
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: vantage-ai-config
+        - secretRef:
+            name: vantage-ai-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: app-logs
+          mountPath: /app/logs
+      volumes:
+      - name: app-logs
+        emptyDir: {}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vantage-web-service
+  namespace: vantage-ai
+spec:
+  selector:
+    app: vantage-web
+  ports:
+  - protocol: TCP
+    port: 3000
+    targetPort: 3000
+  type: ClusterIP

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vantage-ai
+  labels:
+    name: vantage-ai
+    environment: production

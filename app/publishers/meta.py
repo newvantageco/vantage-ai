@@ -25,9 +25,11 @@ class MetaPublisher(Publisher):
     async def publish(
         self,
         *,
+        org_id: str,
         caption: str,
         media_paths: Sequence[str],
         first_comment: Optional[str] = None,
+        account_ref: Optional[str] = None,
         idempotency_key: Optional[str] = None,
     ) -> PostResult:
         logger.info(
@@ -47,15 +49,25 @@ class MetaPublisher(Publisher):
 
         try:
             # Get valid access token
-            access_token = await self._get_access_token()
+            access_token = await self._get_access_token(org_id, account_ref)
             
             # Sanitize caption
             sanitized_caption = sanitize_caption(caption)
             fb_caption = truncate_for_platform(sanitized_caption, "facebook", PLATFORM_LIMITS["facebook"])
             ig_caption = truncate_for_platform(sanitized_caption, "instagram", PLATFORM_LIMITS["instagram"])
             
-            # Get page access token
-            page_access_token = await self.oauth.get_page_access_token(access_token, self.settings.meta_page_id)
+            # Get page access token using the account_ref (page_id) from channel
+            from app.services.channel_service import ChannelService
+            from app.db.session import get_db
+            
+            db = next(get_db())
+            try:
+                channel_service = ChannelService(db)
+                credentials = await channel_service.get_channel_credentials(org_id, "meta", account_ref)
+                page_id = credentials["page_id"] if credentials else self.settings.meta_page_id
+                page_access_token = await self.oauth.get_page_access_token(access_token, page_id)
+            finally:
+                db.close()
             
             # Post to Facebook Page
             fb_post_id = await self._post_to_facebook(page_access_token, fb_caption, media_paths, idempotency_key)
@@ -85,11 +97,25 @@ class MetaPublisher(Publisher):
             logger.error(f"[Meta] Failed to publish: {e}")
             raise
 
-    async def _get_access_token(self) -> str:
+    async def _get_access_token(self, org_id: str, account_ref: Optional[str] = None) -> str:
         """Get valid access token from storage."""
-        # This would typically fetch from your database
-        # For now, we'll raise an error indicating token is needed
-        raise ValueError("Meta access token not found. Please implement token storage.")
+        from app.services.channel_service import ChannelService
+        from app.db.session import get_db
+        
+        # Get database session
+        db = next(get_db())
+        try:
+            channel_service = ChannelService(db)
+            
+            # Get credentials for Meta
+            credentials = await channel_service.get_channel_credentials(org_id, "meta", account_ref)
+            
+            if not credentials or not credentials.get("access_token"):
+                raise ValueError("Meta access token not found. Please connect your Meta account first.")
+            
+            return credentials["access_token"]
+        finally:
+            db.close()
 
     async def _post_to_facebook(
         self, 

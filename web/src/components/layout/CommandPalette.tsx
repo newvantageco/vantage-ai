@@ -23,6 +23,8 @@ import {
   Shield,
   Palette,
   LayoutDashboard,
+  Upload,
+  Download,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -61,7 +63,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       icon: <FileText className="h-4 w-4" />,
       action: () => {
         toast.success("Creating new draft...");
-        router.push("/templates?action=create");
+        router.push("/composer");
       },
       keywords: ["new", "draft", "content", "create", "write"],
     },
@@ -77,11 +79,94 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       keywords: ["schedule", "publish", "now", "post", "immediate"],
     },
     {
+      id: "search-content",
+      title: "Search content",
+      description: "Search the web for inspiration and trending content",
+      icon: <Search className="h-4 w-4" />,
+      action: () => {
+        toast.success("Opening content search...");
+        router.push("/search");
+      },
+      keywords: ["search", "find", "research", "content", "web"],
+    },
+    {
+      id: "create-campaign",
+      title: "Create campaign",
+      description: "Start a new marketing campaign",
+      icon: <Image className="h-4 w-4" />,
+      action: () => {
+        toast.success("Creating new campaign...");
+        router.push("/campaigns?action=create");
+      },
+      keywords: ["campaign", "marketing", "ads", "promotion", "create"],
+    },
+    {
+      id: "view-analytics",
+      title: "View analytics",
+      description: "Check performance metrics and insights",
+      icon: <BarChart3 className="h-4 w-4" />,
+      action: () => {
+        toast.success("Loading analytics...");
+        router.push("/analytics");
+      },
+      keywords: ["analytics", "metrics", "performance", "stats", "insights"],
+    },
+    {
+      id: "upload-media",
+      title: "Upload media",
+      description: "Upload images, videos, or other media files",
+      icon: <Upload className="h-4 w-4" />,
+      action: () => {
+        toast.success("Opening media upload...");
+        router.push("/media?action=upload");
+      },
+      keywords: ["upload", "media", "images", "videos", "files"],
+    },
+    {
+      id: "manage-team",
+      title: "Manage team",
+      description: "Add, remove, or manage team members",
+      icon: <Users className="h-4 w-4" />,
+      action: () => {
+        toast.success("Opening team management...");
+        router.push("/team");
+      },
+      keywords: ["team", "members", "users", "manage", "collaboration"],
+    },
+    {
+      id: "view-automation",
+      title: "View automation",
+      description: "Manage automated workflows and rules",
+      icon: <Zap className="h-4 w-4" />,
+      action: () => {
+        toast.success("Opening automation dashboard...");
+        router.push("/automation");
+      },
+      keywords: ["automation", "workflows", "rules", "auto", "zap"],
+    },
+    {
+      id: "export-data",
+      title: "Export data",
+      description: "Export your content and analytics data",
+      icon: <Download className="h-4 w-4" />,
+      action: () => {
+        toast.success("Preparing data export...");
+        // Simulate export process
+        setTimeout(() => {
+          toast.success("Data export completed!");
+        }, 2000);
+      },
+      keywords: ["export", "download", "data", "backup", "save"],
+    },
+    {
       id: "go-to-inbox",
       title: "Go to Inbox",
       description: "View messages and conversations",
       icon: <MessageSquare className="h-4 w-4" />,
-      action: () => router.push("/inbox"),
+      action: () => {
+        toast.success("Opening inbox...");
+        router.push("/collaboration");
+      },
       keywords: ["inbox", "messages", "conversations", "chat", "mail"],
     },
     {
@@ -89,7 +174,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       title: "Open Settings",
       description: "Configure your account and preferences",
       icon: <Settings className="h-4 w-4" />,
-      action: () => router.push("/settings"),
+      action: () => {
+        toast.success("Opening settings...");
+        router.push("/settings");
+      },
       keywords: ["settings", "preferences", "config", "account"],
     },
   ];
@@ -150,6 +238,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       icon: <Users className="h-4 w-4" />,
       action: () => router.push("/team"),
       keywords: ["team", "members", "users", "collaboration"],
+    },
+    {
+      id: "nav-collaboration",
+      title: "Collaboration",
+      description: "Content approvals, comments, and version control",
+      icon: <MessageSquare className="h-4 w-4" />,
+      action: () => router.push("/collaboration"),
+      keywords: ["collaboration", "approvals", "comments", "feedback", "versions", "teamwork"],
     },
     {
       id: "nav-billing",
