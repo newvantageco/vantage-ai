@@ -105,10 +105,17 @@ class PrivacyWorker:
             
             logger.info(f"Starting delete job {job_id} for org {job.org_id}")
             
-            # Wait for grace period
+            # Wait for grace period - schedule for later instead of blocking
             if grace_period_days > 0:
-                logger.info(f"Waiting {grace_period_days} days grace period for job {job_id}")
-                await asyncio.sleep(grace_period_days * 24 * 3600)  # Convert days to seconds
+                logger.info(f"Scheduling delete job {job_id} for {grace_period_days} days from now")
+                # Instead of blocking, schedule the job for later execution
+                from app.workers.celery_app import celery_app
+                celery_app.send_task(
+                    'app.workers.privacy_worker.execute_delayed_deletion',
+                    args=[job_id],
+                    countdown=grace_period_days * 24 * 3600  # Schedule for later
+                )
+                return {"status": "scheduled", "job_id": job_id, "grace_period_days": grace_period_days}
             
             # Perform data deletion
             await self._delete_org_data(job.org_id, delete_media)
